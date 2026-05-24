@@ -1,4 +1,7 @@
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
+
 #include "emulator.h"
 #include "common/logging.h"
 
@@ -20,4 +23,17 @@ void emulator_init(emulator_t *emulator)
    cartridge_init(&emulator->rom);
 
    LOG_DEBUG("emulator init success!\n");
+}
+
+void emulator_load_game_cartridge(emulator_t *emulator, const char *game_cartridge_path)
+{
+   if (game_cartridge_path == NULL)
+   {
+      LOG_ERROR("invalid path to game cartridge");
+      exit(-1);
+   }
+   else
+   {
+      cartridge_load(&emulator->rom, game_cartridge_path);
+   }
 }

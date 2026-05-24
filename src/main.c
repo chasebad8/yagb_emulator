@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
    {
       emulator_init(&emulator);
 
-      cartridge_load(&emulator.rom, argv[1]);
+      emulator_load_game_cartridge(&emulator, argv[1]);
 
       while (1)
       {

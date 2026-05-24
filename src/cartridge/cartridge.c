@@ -19,12 +19,7 @@ void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
    FILE *fptr = NULL;
    size_t cartridge_size = 0;
 
-   if (cartridge_path == NULL)
-   {
-      LOG_ERROR("Invalid path to cartridge");
-      exit(-1);
-   }
-   else if (cartridge_p->rom != NULL)
+   if (cartridge_p->rom != NULL)
    {
       LOG_ERROR("Another cartridge is currently loaded into memory. Please unload it first");
       exit(-1);

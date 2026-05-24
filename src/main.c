@@ -1,8 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 #include "common/logging.h"
 #include "emulator.h"
 
+#if BYTE_ORDER != LITTLE_ENDIAN
+#error "!! this emulator requires a little-endian system !!"
+#endif
 /**
  * this is the entry point to the program. It will call public emulator functions.
  * effectively it will progress the emulator.

@@ -27,9 +27,11 @@ target_compile_options(yagb PRIVATE
 )
 
 #compiler definitions for logging
-# target_compile_definitions(yagb PRIVATE
-#     LOGTIME
-#     LOGFILE
-# )
+target_compile_definitions(yagb PRIVATE
+    #LOGTIME
+    #LOGFILE
+    EXIT_ON_BAD_OPCODE
+)
+
 
 target_include_directories(yagb PRIVATE src)

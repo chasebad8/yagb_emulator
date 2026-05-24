@@ -5,7 +5,9 @@
 #include "ppu/ppu.h"
 #include "cartridge/cartridge.h"
 
+/* 8 KB wram max */
 #define WRAM_SIZE 0x2000
+/* 127 B hram max */
 #define HRAM_SIZE 0x7F
 
 typedef struct

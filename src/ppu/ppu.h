@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+/* 8 KB max */
 #define VRAM_SIZE (0x2000)
 
 typedef struct

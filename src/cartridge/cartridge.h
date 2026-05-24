@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+/* 32 KB max */
 #define MAX_ROM_SIZE 0x8000
 
 typedef struct

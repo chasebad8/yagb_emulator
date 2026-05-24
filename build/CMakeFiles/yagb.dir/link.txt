@@ -1,0 +1,1 @@
+/usr/bin/cc    CMakeFiles/yagb.dir/src/main.c.o CMakeFiles/yagb.dir/src/emulator.c.o CMakeFiles/yagb.dir/src/bus/bus.c.o CMakeFiles/yagb.dir/src/cpu/cpu.c.o CMakeFiles/yagb.dir/src/ppu/ppu.c.o CMakeFiles/yagb.dir/src/timer/timer.c.o CMakeFiles/yagb.dir/src/input/input.c.o CMakeFiles/yagb.dir/src/cartridge/cartridge.c.o CMakeFiles/yagb.dir/src/common/logging.c.o  -o yagb 

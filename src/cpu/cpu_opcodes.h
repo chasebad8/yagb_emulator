@@ -282,7 +282,7 @@ typedef enum {
     OP_CP_A_N        = 0xFE,
     OP_RST_7         = 0xFF,
 
-    OP_MAX = OP_RST_7
+    OP_MAX
 
 } opcode_t;
 

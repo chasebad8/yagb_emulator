@@ -5,57 +5,6 @@
 #include "cpu_opcodes.h"
 #include "common/logging.h"
 
-/* this can be global, its read only */
-static opcode_handler_t opcode_table[OP_MAX] = {
-   op_nop,      op_ld_r16_i16, op_ld_m16_r8, NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-   NULL,        NULL,          NULL,         NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-
-   NULL,        op_ld_r16_i16, op_ld_m16_r8, NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-   NULL,        NULL,          NULL,         NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-
-   NULL,        op_ld_r16_i16, op_ld_m16_r8, NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-   NULL,        NULL,          NULL,         NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-
-   NULL,        op_ld_r16_i16, op_ld_m16_r8, NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-   NULL,        NULL,          NULL,         NULL,        NULL,        NULL,        op_ld_r8_i8, NULL,
-
-   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-
-   op_ld_r8_r8, op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-   op_ld_r8_r8, op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-
-   op_ld_r8_r8, op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-   op_ld_r8_r8, op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-
-   op_ld_r8_r8, op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, NULL,        op_ld_r8_r8,
-   op_ld_r8_r8, op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-};
-
 /* BLOCK 0 OPCODES */
 static void op_nop(cpu_t *cpu, uint8_t opcode)
 {
@@ -155,12 +104,6 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
    }
 }
 
-/* BLOCK 1 OPCODES */
-
-/* BLOCK 2 OPCODES */
-
-/* BLOCK 3 OPCODES */
-
 static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
 {
    LOG_WARN("opcode 0x%0X is not implemented", opcode);
@@ -169,6 +112,64 @@ static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
    exit(-1);
 #endif
 }
+#define TODO op_unimplemented
+
+/* this can be global, its read only */
+static const opcode_handler_t opcode_table[OP_MAX] = {
+   op_nop,      op_ld_r16_i16, op_ld_m16_r8, TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+   TODO,        TODO,          TODO,         TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+
+   TODO,        op_ld_r16_i16, op_ld_m16_r8, TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+   TODO,        TODO,          TODO,         TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+
+   TODO,        op_ld_r16_i16, op_ld_m16_r8, TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+   TODO,        TODO,          TODO,         TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+
+   TODO,        op_ld_r16_i16, op_ld_m16_r8, TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+   TODO,        TODO,          TODO,         TODO,        TODO,        TODO,        op_ld_r8_i8, TODO,
+
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, TODO,        op_ld_r8_r8,
+   op_ld_r8_r8, op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8, op_ld_r8_r8,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+};
+
+/* BLOCK 1 OPCODES */
+
+/* BLOCK 2 OPCODES */
+
+/* BLOCK 3 OPCODES */
 
 void cpu_init(cpu_t *cpu, bus_t *bus)
 {
@@ -187,8 +188,6 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
 
    cpu->bus = bus;
 
-   cpu_bind_opcodes();
-
    LOG_DEBUG("cpu init success!");
 
 }
@@ -203,22 +202,7 @@ void cpu_step(cpu_t *cpu)
    }
    else
    {
-      /* fetch */
       uint8_t opcode = bus_read(cpu->bus, cpu->PC++);
       opcode_table[opcode](cpu, opcode);
    }
 }
-
-// CPU implementation
-
-      if(opcode_table[opcode] == NULL)
-      {
-         LOG_WARN("opcode 0x%0X is not implemented", opcode);
-#ifdef EXIT_ON_BAD_OPCODE
-         exit(-1);
-#endif
-      }
-      else
-      {
-         opcode_table[opcode](cpu, opcode);
-      }

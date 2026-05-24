@@ -1,3 +1,0 @@
-/home/cb/Documents/yagb_emulator/build/CMakeFiles/rebuild_cache.dir
-/home/cb/Documents/yagb_emulator/build/CMakeFiles/edit_cache.dir
-/home/cb/Documents/yagb_emulator/build/CMakeFiles/yagb.dir

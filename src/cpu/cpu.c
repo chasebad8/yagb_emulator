@@ -31,14 +31,14 @@ static inline uint8_t read_r8(cpu_t *cpu, uint8_t reg_idx)
 {
    switch(reg_idx)
    {
-      case 0: return cpu->B;
-      case 1: return cpu->C;
-      case 2: return cpu->D;
-      case 3: return cpu->E;
-      case 4: return cpu->H;
-      case 5: return cpu->L;
-      case 6: return bus_read(cpu->bus, cpu->HL);
-      case 7: return cpu->A;
+      case REG_B: return cpu->B;
+      case REG_C: return cpu->C;
+      case REG_D: return cpu->D;
+      case REG_E: return cpu->E;
+      case REG_H: return cpu->H;
+      case REG_L: return cpu->L;
+      case REG_HL: return bus_read(cpu->bus, cpu->HL);
+      case REG_A: return cpu->A;
    }
    return 0;
 }
@@ -48,14 +48,14 @@ static inline void write_r8(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
 {
    switch(reg_idx)
    {
-      case 0: cpu->B = value; break;
-      case 1: cpu->C = value; break;
-      case 2: cpu->D = value; break;
-      case 3: cpu->E = value; break;
-      case 4: cpu->H = value; break;
-      case 5: cpu->L = value; break;
-      case 6: bus_write(cpu->bus, cpu->HL, value); break;
-      case 7: cpu->A = value; break;
+      case REG_B: cpu->B = value; break;
+      case REG_C: cpu->C = value; break;
+      case REG_D: cpu->D = value; break;
+      case REG_E: cpu->E = value; break;
+      case REG_H: cpu->H = value; break;
+      case REG_L: cpu->L = value; break;
+      case REG_HL: bus_write(cpu->bus, cpu->HL, value); break;
+      case REG_A: cpu->A = value; break;
    }
 }
 

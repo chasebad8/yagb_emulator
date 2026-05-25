@@ -4,6 +4,19 @@
 #include <stdint.h>
 #include "bus/bus.h"
 
+typedef enum
+{
+   REG_B = 0,
+   REG_C,
+   REG_D,
+   REG_E,
+   REG_H,
+   REG_L,
+   REG_HL,
+   REG_A
+
+} reg8_grouping_e;
+
 typedef struct
 {
    /*
@@ -14,7 +27,7 @@ typedef struct
    {
       struct
       {
-         uint8_t F; /* also flag register */
+         uint8_t F; /* also flag register  */
          uint8_t A;
       };
       uint16_t AF;

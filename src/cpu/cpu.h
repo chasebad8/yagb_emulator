@@ -14,7 +14,7 @@ typedef struct
    {
       struct
       {
-         uint8_t F;
+         uint8_t F; /* also flag register */
          uint8_t A;
       };
       uint16_t AF;

@@ -12,10 +12,19 @@ typedef enum
    REG_E,
    REG_H,
    REG_L,
-   REG_HL,
+   REG_HL_MEM,
    REG_A
 
 } reg8_grouping_e;
+
+typedef enum
+{
+   REG_BC = 0,
+   REG_DE,
+   REG_HL,
+   REG_SP
+
+} reg16_grouping_e;
 
 typedef struct
 {

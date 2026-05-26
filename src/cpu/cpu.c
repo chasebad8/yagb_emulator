@@ -1,3 +1,17 @@
+/**
+ * @file cpu.c
+ * @brief Game Boy CPU emulation implementation
+ *
+ * Implements the central processing unit (CPU) for the YAGB Game Boy emulator.
+ * Contains opcode handlers for 8-bit and 16-bit arithmetic operations, load/store
+ * instructions, and increment/decrement operations. Provides helper functions for
+ * reading and writing 8-bit and 16-bit registers with proper memory address handling.
+ * Includes proper flag handling (Z, N, H, C) for ALU operations.
+ *
+ * @author Chase Badalato
+ * @date 2026-05-25
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -9,24 +23,30 @@
 #define CLR_FLD(reg, pos) ((reg) &= ~(1 << (pos)))
 #define WRITE_FLD(reg, val, pos) (((val) == 1) ? SET_FLD((reg),(pos)): CLR_FLD((reg),(pos)))
 
+/**
+ *  half carry is based on the 4 bits overflowing into the 5th bit.
+ *  example: 0x0100 1111 + 1 becomes
+ *           0x0101 0000 half carry = TRUE!
+ */
+#define HALF_CARRY_POS 1
+#define WRITE_H(reg, val) (WRITE_FLD((reg), (val), HALF_CARRY_POS))
+
 #define ZERO_POS 3
 #define WRITE_Z(reg, val) (WRITE_FLD((reg), (val), ZERO_POS))
-#define WRITE_Z_IF_ZERO(reg, val) ((val == 0) ? WRITE_Z((reg), 1) : WRITE_Z((reg), 0))
 
 #define SUBTRACT_POS 2
 #define WRITE_N(reg, val) (WRITE_FLD((reg), (val), SUBTRACT_POS))
 
-/* half carry is based on the 4 bits overflowing into the 5th bith.
-   example: 0x0100 1111 + 1 becomes
-            0x0101 0000 half carry = TRUE!
-*/
-#define HALF_CARRY_POS 1
-#define WRITE_H(reg, val) (WRITE_FLD((reg), (val), HALF_CARRY_POS))
-
 #define CARRY_POS 0
 #define WRITE_C(reg, val) (WRITE_FLD((reg), (val), CARRY_POS))
 
-/* Helper function to read 8-bit register by index (0-7, where 6 = [HL]) */
+/**
+ * @brief read from a 8 bit CPU register
+ *
+ * @param cpu
+ * @param reg_idx
+ * @return uint8_t
+ */
 static inline uint8_t read_r8(cpu_t *cpu, uint8_t reg_idx)
 {
    switch(reg_idx)
@@ -37,13 +57,19 @@ static inline uint8_t read_r8(cpu_t *cpu, uint8_t reg_idx)
       case REG_E: return cpu->E;
       case REG_H: return cpu->H;
       case REG_L: return cpu->L;
-      case REG_HL: return bus_read(cpu->bus, cpu->HL);
+      case REG_HL_MEM: return bus_read(cpu->bus, cpu->HL);
       case REG_A: return cpu->A;
    }
    return 0;
 }
 
-/* Helper function to write 8-bit register by index (0-7, where 6 = [HL]) */
+/**
+ * @brief write to a 8 bit CPU register
+ *
+ * @param cpu
+ * @param reg_idx
+ * @param value
+ */
 static inline void write_r8(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
 {
    switch(reg_idx)
@@ -54,18 +80,100 @@ static inline void write_r8(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
       case REG_E: cpu->E = value; break;
       case REG_H: cpu->H = value; break;
       case REG_L: cpu->L = value; break;
-      case REG_HL: bus_write(cpu->bus, cpu->HL, value); break;
+      case REG_HL_MEM: bus_write(cpu->bus, cpu->HL, value); break;
       case REG_A: cpu->A = value; break;
    }
 }
 
-/*
- i8, i16 == immediate 8 or 16 (next byte or 2 from memory)
- r8, r16 == register 8 or 16  (group contiguous register if 16)
- m8, m16 == memory 8 or 16    (get value at register in memory pointed to by m8 or m16)
- opcode, dest, src
-*/
+/**
+ * @brief read from a 16 bit CPU register
+ *
+ * @param cpu
+ * @param reg_idx
+ * @return uint16_t
+ */
+static inline uint16_t read_r16(cpu_t *cpu, uint8_t reg_idx)
+{
+   switch(reg_idx)
+   {
+      case REG_BC: return cpu->BC; break;
+      case REG_DE: return cpu->DE; break;
+      case REG_HL: return cpu->HL; break;
+      case REG_SP: return cpu->SP; break;
+   }
+   return 0;
+}
 
+/**
+ * @brief write to a 16 bit CPU register
+ *
+ * @param cpu
+ * @param reg_idx
+ * @param value
+ */
+static inline void write_r16(cpu_t *cpu, uint8_t reg_idx, uint16_t value)
+{
+   switch(reg_idx)
+   {
+      case REG_BC: cpu->BC = value; break;
+      case REG_DE: cpu->DE = value; break;
+      case REG_HL: cpu->HL = value; break;
+      case REG_SP: cpu->SP = value; break;
+   }
+}
+
+/**
+ * @brief read from a memory address that is pointed to by
+ *        a 16 bit CPU register
+ *
+ * @param cpu
+ * @param reg_idx
+ * @return uint8_t
+ */
+static inline uint8_t read_m16(cpu_t *cpu, uint8_t reg_idx)
+{
+   uint8_t addr = 0;
+
+   switch(reg_idx)
+   {
+      case 0: addr = cpu->BC;   break;
+      case 1: addr = cpu->DE;   break;
+      case 2: addr = cpu->HL++; break;
+      case 3: addr = cpu->HL--; break;
+   }
+
+   return bus_read(cpu->bus, addr);
+}
+
+/**
+ * @brief write to a memory address that is pointed to by
+ *        a 16 bit CPU register
+ *
+ * @param cpu
+ * @param reg_idx
+ * @param value
+ */
+static inline void write_m16(cpu_t *cpu, uint8_t reg_idx, uint16_t value)
+{
+   uint8_t addr = 0;
+
+   switch(reg_idx)
+   {
+      case 0: addr = cpu->BC;   break;
+      case 1: addr = cpu->DE;   break;
+      case 2: addr = cpu->HL++; break;
+      case 3: addr = cpu->HL--; break;
+   }
+
+   bus_write(cpu->bus, addr, value);
+}
+
+/**
+ * @brief opcode not yet implemented placeholder
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
 {
    LOG_WARN("opcode 0x%0X is not implemented", opcode);
@@ -79,74 +187,84 @@ static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
 /*********************
     BLOCK 0 OPCODES
 **********************/
+/**
+ * @brief eat a cycle of the CPU
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_nop(cpu_t *cpu, uint8_t opcode)
 {
    LOG_DEBUG("opcode %0X NOP", opcode);
 }
 
-/* load a 16 bit register with a 16 bit value */
+/**
+ * @brief load a 16 bit register with a 16 bit value
+ *        in the next 2 contiguous bytes of memory
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
 {
    /* grab the next 2 bytes in memory (little endian)*/
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
    uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
-   uint16_t src_word  = ((high_byte << 8) | low_byte);
+   uint16_t value     = ((high_byte << 8) | low_byte);
 
    uint8_t dest_reg = ((opcode >> 4) & 0x3);
 
-   switch(dest_reg)
-   {
-      case 0: cpu->BC = src_word; break;
-      case 1: cpu->DE = src_word; break;
-      case 2: cpu->HL = src_word; break;
-      case 3: cpu->SP = src_word; break;
-   }
+   write_r16(cpu, dest_reg, value);
 }
 
-/* load address pointed to by a 16 bit register with 8 bit value */
+/**
+ * @brief write to memory address pointed to by a 16 bit
+ *        register with 8 bit value
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_ld_m16_r8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  src_reg  = ((opcode >> 4) & 0x3);
-   uint16_t mem_addr = 0;
+   uint8_t src_reg = ((opcode >> 4) & 0x3);
 
-   switch(src_reg)
-   {
-      case 0: mem_addr = cpu->BC; break;
-      case 1: mem_addr = cpu->DE; break;
-      case 2: mem_addr = cpu->HL++; break;
-      case 3: mem_addr = cpu->HL--; break;
-   }
-
-   bus_write(cpu->bus, mem_addr, cpu->A);
+   write_m16(cpu, src_reg, cpu->A);
 }
 
+/**
+ * @brief increment the value in register r16 by 1
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_inc_r16(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t src_reg = (opcode >> 4) & 0x3;
+   uint8_t  src_reg = (opcode >> 4) & 0x3;
+   uint16_t value   = read_r16(cpu, src_reg);
 
-   switch(src_reg)
-   {
-      case 0: cpu->BC++; break;
-      case 1: cpu->DE++; break;
-      case 2: cpu->HL++; break;
-      case 3: cpu->SP++; break;
-
-   }
+   write_r16(cpu, src_reg, ++value);
 }
 
+/**
+ * @brief decrement the value in register r16 by 1.
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_dec_r16(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t src_reg = (opcode >> 4) & 0x3;
+   uint8_t  src_reg = (opcode >> 4) & 0x3;
+   uint16_t value   = read_r16(cpu, src_reg);
 
-   switch(src_reg)
-   {
-      case 0: cpu->BC--; break;
-      case 1: cpu->DE--; break;
-      case 2: cpu->HL--; break;
-      case 3: cpu->SP--; break;
-   }
+   write_r16(cpu, src_reg, --value);
 }
 
+/**
+ * @brief increment the value in register r8 by 1.
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_inc_r8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t src_reg = ((opcode >> 3) & 0x7);
@@ -159,6 +277,12 @@ static void op_inc_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, ((val & 0x0F) == 0x0));
 }
 
+/**
+ * @brief decrement the value in register r8 by 1.
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_dec_r8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t src_reg = ((opcode >> 3) & 0x7);
@@ -171,7 +295,13 @@ static void op_dec_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, ((val & 0x0F) == 0xF));
 }
 
-/* load the immediate byte from memory into 8 bit register */
+/**
+ * @brief load the immediate byte from memory into
+ *        a 8 bit CPU register
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t dest_reg = ((opcode >> 3) & 0x7);
@@ -183,6 +313,13 @@ static void op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
 /*********************
     BLOCK 1 OPCODES
 **********************/
+/**
+ * @brief load r8 CPU register with value from
+ *        other r8 CPU register
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t src_reg  = (opcode & 0x7);
@@ -195,6 +332,12 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
     BLOCK 2 OPCODES
     8-bit arithmetic
 **********************/
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t src_reg  = (opcode & 0x7);
@@ -219,6 +362,12 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFF));
 }
 
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t src_reg  = (opcode & 0x7);
@@ -241,13 +390,22 @@ static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFF));
 }
 
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
 static void op_add_r8_i8(cpu_t *cpu, uint8_t opcode)
 {
 
 }
 
-
-/* this can be global, its read only */
+/**
+ * @brief opcode function pointer array
+ *        this array can be a global as it is read only
+ *
+ */
 static const opcode_handler_t opcode_table[OP_MAX] =
 {
    op_nop,      op_ld_r16_i16, op_ld_m16_r8, op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,

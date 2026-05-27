@@ -24,17 +24,21 @@
 #define WRITE_FLD(reg, val, pos) (((val) == 1) ? SET_FLD((reg),(pos)): CLR_FLD((reg),(pos)))
 #define READ_FLD(reg, pos) (((reg) >> (pos)) & 0x1)
 
-#define ZERO_POS 3
+#define ZERO_POS 7
 #define WRITE_Z(reg, val) (WRITE_FLD((reg), (val), ZERO_POS))
+#define READ_Z(reg) (READ_FLD((reg), ZERO_POS))
 
-#define SUBTRACT_POS 2
+#define SUBTRACT_POS 6
 #define WRITE_N(reg, val) (WRITE_FLD((reg), (val), SUBTRACT_POS))
+#define READ_N(reg) (READ_FLD((reg), SUBTRACT_POS))
 
-#define HALF_CARRY_POS 1
+#define HALF_CARRY_POS 5
 #define WRITE_H(reg, val) (WRITE_FLD((reg), (val), HALF_CARRY_POS))
+#define READ_H(reg) (READ_FLD((reg), HALF_CARRY_POS))
 
-#define CARRY_POS 0
+#define CARRY_POS 4
 #define WRITE_C(reg, val) (WRITE_FLD((reg), (val), CARRY_POS))
+#define READ_C(reg) (READ_FLD((reg), CARRY_POS))
 
 /**
  * @brief read from a 8 bit CPU register
@@ -494,12 +498,115 @@ static void op_rra(cpu_t *cpu, uint8_t opcode)
    uint8_t carry_bit = (cpu->A & 0x1);
 
    /* shift the reg by 1 and or back in carry after shifting */
-   cpu->A = ((cpu->A >> 1) | (READ_FLD(cpu->F, CARRY_POS) << 7));
+   cpu->A = ((cpu->A >> 1) | (READ_C(cpu->F) << 7));
 
    WRITE_Z(cpu->F, 0);
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
+}
+
+/**
+ * @brief relative jump to address n16.
+ *        the target address n16 is encoded as a signed
+ *        8-bit offset from the address immediately following
+ *        the JR instruction, so it must be between -128 and
+ *        127 bytes away
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_jr_e8(cpu_t *cpu, uint8_t opcode)
+{
+   int8_t offset = bus_read(cpu->bus, cpu->PC++);
+
+   if ((cpu->PC + offset) < 0)
+   {
+      LOG_ERROR("invalid jump attempted, addr will underflow 0x%0X", (cpu->PC + offset));
+      exit(-1);
+   }
+   else
+   {
+      cpu->PC += offset;
+   }
+}
+
+/**
+ * @brief relative jump to address n16 if a condition is met.
+ *        the target address n16 is encoded as a signed
+ *        8-bit offset from the address immediately following
+ *        the JR instruction, so it must be between -128 and
+ *        127 bytes away
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
+{
+   int8_t  offset = bus_read(cpu->bus, cpu->PC++);
+   uint8_t flag   = (opcode >> 3) & 0x3;
+
+   if ((cpu->PC + offset) < 0)
+   {
+      LOG_ERROR("invalid jump attempted, addr will underflow 0x%0X", (cpu->PC + offset));
+      exit(-1);
+   }
+   else if ((offset == 0) && (READ_N(cpu->F) == false))
+   {
+      cpu->PC += offset;
+   }
+   else if ((offset == 1) && (READ_N(cpu->F) == true))
+   {
+      cpu->PC += offset;
+   }
+   else if ((offset == 2) && (READ_C(cpu->F) == false))
+   {
+      cpu->PC += offset;
+   }
+   else if ((offset == 3) && (READ_C(cpu->F) == true))
+   {
+      cpu->PC += offset;
+   }
+}
+
+/**
+ * @brief bitwise NOT
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_cpl(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->A = ~cpu->A;
+
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, 1);
+}
+
+/**
+ * @brief SET carry flag
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_scf(cpu_t *cpu, uint8_t opcode)
+{
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, 1);
+}
+
+/**
+ * @brief NOT carry flag
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ccf(cpu_t *cpu, uint8_t opcode)
+{
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, ~READ_C(cpu->F));
 }
 
 /**
@@ -614,13 +721,13 @@ static const opcode_handler_t opcode_table[OP_MAX] =
    op_ld_mi16_sp, op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rrca,
 
    op_stop,       op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rla,
-   TODO,          op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rra,
+   op_jr_e8,      op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rra,
 
-   TODO,          op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
-   TODO,          op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
+   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
+   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_cpl,
 
-   TODO,          op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
-   TODO,          op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
+   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_scf,
+   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_ccf,
 
    op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
    op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
@@ -683,7 +790,6 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
    cpu->bus = bus;
 
    LOG_DEBUG("cpu init success!");
-
 }
 
 /**

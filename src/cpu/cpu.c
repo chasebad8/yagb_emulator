@@ -22,20 +22,16 @@
 #define SET_FLD(reg, pos) ((reg) |=  (1 << (pos)))
 #define CLR_FLD(reg, pos) ((reg) &= ~(1 << (pos)))
 #define WRITE_FLD(reg, val, pos) (((val) == 1) ? SET_FLD((reg),(pos)): CLR_FLD((reg),(pos)))
-
-/**
- *  half carry is based on the 4 bits overflowing into the 5th bit.
- *  example: 0x0100 1111 + 1 becomes
- *           0x0101 0000 half carry = TRUE!
- */
-#define HALF_CARRY_POS 1
-#define WRITE_H(reg, val) (WRITE_FLD((reg), (val), HALF_CARRY_POS))
+#define READ_FLD(reg, pos) (((reg) >> (pos)) & 0x1)
 
 #define ZERO_POS 3
 #define WRITE_Z(reg, val) (WRITE_FLD((reg), (val), ZERO_POS))
 
 #define SUBTRACT_POS 2
 #define WRITE_N(reg, val) (WRITE_FLD((reg), (val), SUBTRACT_POS))
+
+#define HALF_CARRY_POS 1
+#define WRITE_H(reg, val) (WRITE_FLD((reg), (val), HALF_CARRY_POS))
 
 #define CARRY_POS 0
 #define WRITE_C(reg, val) (WRITE_FLD((reg), (val), CARRY_POS))
@@ -438,6 +434,9 @@ static void op_rlca(cpu_t *cpu, uint8_t opcode)
    /* shift the reg by 1 and or back in carry */
    cpu->A = ((cpu->A << 1) | carry_bit);
 
+   WRITE_Z(cpu->F, 0);
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
 }
 
@@ -456,7 +455,62 @@ static void op_rrca(cpu_t *cpu, uint8_t opcode)
    /* shift the reg by 1 and or back in carry after shifting */
    cpu->A = ((cpu->A >> 1) | (carry_bit << 7));
 
+   WRITE_Z(cpu->F, 0);
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
+}
+
+/**
+ * @brief rotate register A left by 1, setting the
+ *        carry flag to the shifted out bit and setting
+ *        the shifted in bit to the old carry flag value.
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_rla(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t carry_bit = ((cpu->A >> 7) & 1);
+
+   cpu->A = ((cpu->A << 1) | READ_FLD(cpu->F, CARRY_POS));
+
+   WRITE_Z(cpu->F, 0);
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+}
+
+/**
+ * @brief rotate register A right by 1 and save the
+ *        value of the bit that was rotated out
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_rra(cpu_t *cpu, uint8_t opcode)
+{
+   /* save the bit being lost */
+   uint8_t carry_bit = (cpu->A & 0x1);
+
+   /* shift the reg by 1 and or back in carry after shifting */
+   cpu->A = ((cpu->A >> 1) | (READ_FLD(cpu->F, CARRY_POS) << 7));
+
+   WRITE_Z(cpu->F, 0);
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+}
+
+/**
+ * @brief for now just end program
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_stop(cpu_t *cpu, uint8_t opcode)
+{
+   LOG_INFO("opcode %0X STOP ... exiting", opcode);
 }
 
 /**********************************************************
@@ -497,7 +551,11 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
    uint8_t  src_val  = read_r8(cpu, src_reg);
    uint8_t  dest_val = read_r8(cpu, dest_reg);
 
-   /* check half-carry (carry from bit 3 to bit 4) */
+   /*
+    *  half carry is based on the 4 bits overflowing into the 5th bit.
+    *  example: 0x0100 1111 + 1 becomes
+    *           0x0101 0000 half carry = TRUE!
+    */
    uint8_t half_carry = ((dest_val & 0x0F) + (src_val & 0x0F)) & 0x10;
 
    /* Perform addition with carry detection */
@@ -555,8 +613,8 @@ static const opcode_handler_t opcode_table[OP_MAX] =
    op_nop,        op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rlca,
    op_ld_mi16_sp, op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rrca,
 
-   TODO,          op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
-   TODO,          op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
+   op_stop,       op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rla,
+   TODO,          op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rra,
 
    TODO,          op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
    TODO,          op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,

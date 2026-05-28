@@ -646,7 +646,8 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
 ***********************************************************/
 
 /**
- * @brief
+ * @brief add two values from r8 src and dest and save
+ *        result in dest
  *
  * @param cpu
  * @param opcode
@@ -679,7 +680,7 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
 }
 
 /**
- * @brief
+ * @brief add with current carry flag
  *
  * @param cpu
  * @param opcode
@@ -704,6 +705,82 @@ static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
+}
+
+/**
+ * @brief AND A with r8
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_and_a_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e src_reg = opcode & 0x7;
+   uint8_t  value = (cpu->A & read_r8(cpu, src_reg));
+
+   cpu->A = value;
+
+   WRITE_Z(cpu->F, (value == 0x0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 1);
+   WRITE_C(cpu->F, 0);
+}
+
+/**
+ * @brief XOR A with r8
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e src_reg = opcode & 0x7;
+   uint8_t  value = (cpu->A ^ read_r8(cpu, src_reg));
+
+   cpu->A = value;
+
+   WRITE_Z(cpu->F, (value == 0x0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, 0);
+}
+
+/**
+ * @brief OR A with r8
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_or_a_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e src_reg = opcode & 0x7;
+   uint8_t  value = (cpu->A | read_r8(cpu, src_reg));
+
+   cpu->A = value;
+
+   WRITE_Z(cpu->F, (value == 0x0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, 0);
+}
+
+/**
+ * @brief compare the value of A and r8.
+ *        subtract r8 from a to set flags but do
+ *        not retain the result
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e src_reg = opcode & 0x7;
+   uint8_t  value = (cpu->A | read_r8(cpu, src_reg));
+
+   WRITE_Z(cpu->F, (cpu->A == value));
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, (cpu->A & 0xF) < (value & 0xF));
+   WRITE_C(cpu->F, (cpu->A < value));
 }
 
 /**********************************************************
@@ -747,11 +824,11 @@ static const opcode_handler_t opcode_table[OP_MAX] =
    TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
    TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8,
+   op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8,
+   op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8,
 
    TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
    TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,

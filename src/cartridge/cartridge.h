@@ -8,7 +8,7 @@
 
 typedef struct
 {
-   uint8_t  rom_size;
+   long  rom_size;
    uint8_t *rom;
 
 } cartridge_t;

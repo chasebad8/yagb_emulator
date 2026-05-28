@@ -17,14 +17,14 @@ void cartridge_init(cartridge_t *cartridge_p)
 void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
 {
    FILE *fptr = NULL;
-   size_t cartridge_size = 0;
+   long cartridge_size = 0;
 
    if (cartridge_p->rom != NULL)
    {
       LOG_ERROR("Another cartridge is currently loaded into memory. Please unload it first");
       exit(-1);
    }
-   else if ((fptr = fopen(cartridge_path, "r")) == NULL)
+   else if ((fptr = fopen(cartridge_path, "rb")) == NULL)
    {
       LOG_ERROR("Failed to open cartridge %s", cartridge_path);
       exit(-1);
@@ -35,9 +35,10 @@ void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
       fseek(fptr, 0, SEEK_END);
       cartridge_p->rom_size = ftell(fptr);
 
-      if ((cartridge_p->rom_size == 0) || (cartridge_p->rom_size > MAX_ROM_SIZE))
+      //if ((cartridge_p->rom_size <= 0) || (cartridge_p->rom_size > MAX_ROM_SIZE))
+      if (cartridge_p->rom_size <= 0)
       {
-         LOG_ERROR("Cartridge size out or ROM limit bounds: %d byte(s)", cartridge_p->rom_size);
+         LOG_ERROR("Cartridge size out or ROM limit bounds: %lu byte(s)", cartridge_p->rom_size);
          fclose(fptr);
          exit(-1);
       }
@@ -49,11 +50,14 @@ void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
       }
       else
       {
+         /* set file pointer back to the start of file */
+         rewind(fptr);
+
          /* copy the cartridge into memory */
          fread(cartridge_p->rom, 1, cartridge_p->rom_size, fptr);
          fclose(fptr);
 
-         LOG_DEBUG("successfully loaded cartridge from %s. size: %d bytes\n", cartridge_path, cartridge_p->rom_size);
+         LOG_INFO("successfully loaded cartridge from %s. size: %lu bytes\n", cartridge_path, cartridge_p->rom_size);
       }
    }
 }

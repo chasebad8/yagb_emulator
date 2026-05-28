@@ -8,7 +8,7 @@
 /* an emulator instance will be created for 1 emulator. Technically we can support multiple emulators at once. */
 void emulator_init(emulator_t *emulator)
 {
-   LOG_DEBUG("initializing emulator ...");
+   LOG_INFO("initializing emulator ...");
 
    /* memory broker */
    bus_init(&emulator->bus, &emulator->ppu, &emulator->rom);
@@ -22,7 +22,7 @@ void emulator_init(emulator_t *emulator)
    /* game cartridge handling unit */
    cartridge_init(&emulator->rom);
 
-   LOG_DEBUG("emulator init success!\n");
+   LOG_INFO("emulator init success!\n");
 }
 
 void emulator_load_game_cartridge(emulator_t *emulator, const char *game_cartridge_path)

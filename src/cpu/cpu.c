@@ -551,19 +551,19 @@ static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
       LOG_ERROR("invalid jump attempted, addr will underflow 0x%0X", (cpu->PC + offset));
       exit(-1);
    }
-   else if ((offset == 0) && (READ_N(cpu->F) == false))
+   else if ((flag == 0) && (READ_N(cpu->F) == false))
    {
       cpu->PC += offset;
    }
-   else if ((offset == 1) && (READ_N(cpu->F) == true))
+   else if ((flag == 1) && (READ_N(cpu->F) == true))
    {
       cpu->PC += offset;
    }
-   else if ((offset == 2) && (READ_C(cpu->F) == false))
+   else if ((flag == 2) && (READ_C(cpu->F) == false))
    {
       cpu->PC += offset;
    }
-   else if ((offset == 3) && (READ_C(cpu->F) == true))
+   else if ((flag == 3) && (READ_C(cpu->F) == true))
    {
       cpu->PC += offset;
    }
@@ -666,7 +666,6 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
     */
    uint8_t half_carry = ((dest_val & 0x0F) + (src_val & 0x0F)) & 0x10;
 
-   /* Perform addition with carry detection */
    uint16_t result = (uint16_t)dest_val + (uint16_t)src_val;
    uint8_t  final_result = (uint8_t)result;
 
@@ -705,6 +704,61 @@ static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
+}
+
+/**
+ * @brief subtract r8 from r8 and save result in dest
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_sub_r8_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e src_reg  = (opcode & 0x7);
+   r8_idx_e dest_reg = (opcode >> 3) & 0x7;
+   uint8_t  src_val  = read_r8(cpu, src_reg);
+   uint8_t  dest_val = read_r8(cpu, dest_reg);
+
+   /* check half-carry (borrow from bit 4) */
+   uint8_t half_carry = (dest_val & 0x0F) < (src_val & 0x0F);
+
+   uint8_t result = dest_val - src_val;
+
+   write_r8(cpu, dest_reg, result);
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, half_carry);
+   WRITE_C(cpu->F, (dest_val < src_val));
+}
+
+/**
+ * @brief subtract with current carry flag
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_sbc_r8_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e src_reg  = (opcode & 0x7);
+   r8_idx_e dest_reg = (opcode >> 3) & 0x7;
+   uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
+   uint8_t  src_val  = read_r8(cpu, src_reg);
+   uint8_t  dest_val = read_r8(cpu, dest_reg);
+
+   /* check half-carry (borrow from bit 4) including carry flag */
+   uint8_t half_carry = (dest_val & 0x0F) < ((src_val & 0x0F) + carry);
+
+   uint8_t result = dest_val - src_val - carry;
+
+   write_r8(cpu, dest_reg, result);
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, half_carry);
+   WRITE_C(cpu->F, ((uint16_t)dest_val < ((uint16_t)src_val + (uint16_t)carry)));
 }
 
 /**
@@ -788,59 +842,467 @@ static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
 ***********************************************************/
 
 /**
+ * @brief add immediate 8-bit value to register A
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  dest_val = cpu->A;
+
+   /* check half-carry (carry from bit 3 to bit 4) */
+   uint8_t half_carry = ((dest_val & 0x0F) + (imm_val & 0x0F)) & 0x10;
+
+   uint16_t result = (uint16_t)dest_val + (uint16_t)imm_val;
+   uint8_t  final_result = (uint8_t)result;
+
+   cpu->A = final_result;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (final_result == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, (half_carry != 0));
+   WRITE_C(cpu->F, (result > 0xFF));
+}
+
+/**
+ * @brief add immediate 8-bit value to register A
+ *        with carry
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
+   uint8_t  dest_val = cpu->A;
+
+   /* check half-carry (carry from bit 3 to bit 4) including carry flag */
+   uint8_t half_carry = ((dest_val & 0x0F) + (imm_val & 0x0F) + carry) & 0x10;
+
+   uint16_t result = (uint16_t)dest_val + (uint16_t)imm_val + (uint16_t)carry;
+   uint8_t  final_result = (uint8_t)result;
+
+   cpu->A = final_result;
+
+   WRITE_Z(cpu->F, (final_result == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, (half_carry != 0));
+   WRITE_C(cpu->F, (result > 0xFF));
+}
+
+/**
+ * @brief subtract immediate 8-bit value from register A
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  dest_val = cpu->A;
+
+   /* check half-carry (borrow from bit 4) */
+   uint8_t half_carry = (dest_val & 0x0F) < (imm_val & 0x0F);
+
+   uint8_t result = dest_val - imm_val;
+
+   cpu->A = result;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, half_carry);
+   WRITE_C(cpu->F, (dest_val < imm_val));
+}
+
+/**
+ * @brief subtract immediate 8-bit value plus carry from register A
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
+   uint8_t  dest_val = cpu->A;
+
+   /* check half-carry (borrow from bit 4) including carry flag */
+   uint8_t half_carry = (dest_val & 0x0F) < ((imm_val & 0x0F) + carry);
+
+   uint8_t result = dest_val - imm_val - carry;
+
+   cpu->A = result;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, half_carry);
+   WRITE_C(cpu->F, (dest_val < (imm_val + carry)));
+}
+
+/**
+ * @brief AND immediate 8-bit value with register A
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  dest_val = cpu->A;
+
+   uint8_t result = dest_val & imm_val;
+
+   cpu->A = result;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 1);
+   WRITE_C(cpu->F, 0);
+}
+
+/**
+ * @brief OR immediate 8-bit value with register A
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  dest_val = cpu->A;
+
+   uint8_t result = dest_val | imm_val;
+
+   cpu->A = result;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, 0);
+}
+
+/**
+ * @brief XOR immediate 8-bit value with register A
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  dest_val = cpu->A;
+
+   uint8_t result = dest_val ^ imm_val;
+
+   cpu->A = result;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, 0);
+}
+
+/**
+ * @brief compare immediate 8-bit value with register A
+ *        (subtract but don't store result, only set flags)
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  dest_val = cpu->A;
+
+   /* check half-carry (borrow from bit 4) */
+   uint8_t half_carry = (dest_val & 0x0F) < (imm_val & 0x0F);
+
+   uint8_t result = dest_val - imm_val;
+
+   /* Set flags */
+   WRITE_Z(cpu->F, (result == 0));
+   WRITE_N(cpu->F, 1);
+   WRITE_H(cpu->F, half_carry);
+   WRITE_C(cpu->F, (dest_val < imm_val));
+}
+
+/**
+ * @brief pop the top of the stack and
+ *        place it into PC.
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ret(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
+   uint8_t pop_addr_high = bus_read(cpu->bus, cpu->SP++);
+
+   cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
+}
+
+/**
+ * @brief pop the top of the stack and
+ *        place it into PC.
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t pop_addr_low  = 0;
+   uint8_t pop_addr_high = 0;
+   uint8_t flag = (opcode >> 3) & 0x3;
+   bool    ret = false;
+
+   if ((flag == 0) && (READ_N(cpu->F) == false))
+   {
+      ret = true;
+   }
+   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   {
+      ret = true;
+   }
+   else if ((flag == 2) && (READ_C(cpu->F) == false))
+   {
+      ret = true;
+   }
+   else if ((flag == 3) && (READ_C(cpu->F) == true))
+   {
+      ret = true;
+   }
+   else if (ret == true)
+   {
+      pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
+      pop_addr_high = bus_read(cpu->bus, cpu->SP++);
+      cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
+   }
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
+   uint16_t addr      = ((high_byte << 8) | low_byte);
+   uint8_t  flag      = (opcode >> 3) & 0x3;
+
+   if ((flag == 0) && (READ_N(cpu->F) == false))
+   {
+      cpu->PC = addr;
+   }
+   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   {
+      cpu->PC = addr;
+   }
+   else if ((flag == 2) && (READ_C(cpu->F) == false))
+   {
+      cpu->PC = addr;
+   }
+   else if ((flag == 3) && (READ_C(cpu->F) == true))
+   {
+      cpu->PC = addr;
+   }
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_jp_i16(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
+   uint16_t addr      = ((high_byte << 8) | low_byte);
+
+   cpu->PC = addr;
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_jp_hl(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->PC = cpu->HL;
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_call_c_i16(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
+   uint16_t addr = ((high_byte << 8) | low_byte);
+   uint8_t  flag = (opcode >> 3) & 0x3;
+   bool     call = false;
+
+   if ((flag == 0) && (READ_N(cpu->F) == false))
+   {
+      call = true;
+   }
+   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   {
+      call = true;
+   }
+   else if ((flag == 2) && (READ_C(cpu->F) == false))
+   {
+      call = true;
+   }
+   else if ((flag == 3) && (READ_C(cpu->F) == true))
+   {
+      call = true;
+   }
+
+   if (call)
+   {
+      bus_write(cpu->bus, --cpu->SP, ((cpu->PC >> 8) & 0xFF));
+      bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
+      cpu->PC = addr;
+   }
+}
+
+/**
+ * @brief push pc+1 addr to the stack and
+ *        jump to the current addr stored in
+ *        pc. this essentially is calling a
+ *        function.
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_call_i16(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
+   uint16_t addr      = ((high_byte << 8) | low_byte);
+
+   bus_write(cpu->bus, --cpu->SP, ((cpu->PC >> 8) & 0xFF));
+   bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
+   cpu->PC = addr;
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_pop(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t reg = (opcode >> 4) & 0x3;
+   uint8_t pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
+   uint8_t pop_addr_high = bus_read(cpu->bus, cpu->SP++);
+   uint16_t value = ((pop_addr_high << 8) | (pop_addr_low));
+
+   switch(reg)
+   {
+      case 0: cpu->BC = value; break;
+      case 1: cpu->DE = value; break;
+      case 2: cpu->HL = value; break;
+      case 3: cpu->AF = value; break;
+   }
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_push(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t reg = (opcode >> 4) & 0x3;
+   uint16_t value = 0;
+
+   switch(reg)
+   {
+      case 0: value = cpu->BC; break;
+      case 1: value = cpu->DE; break;
+      case 2: value = cpu->HL; break;
+      case 3: value = cpu->AF; break;
+   }
+
+   bus_write(cpu->bus, --cpu->SP, ((value >> 8) & 0xFF));
+   bus_write(cpu->bus, --cpu->SP, (value & 0xFF));
+}
+
+/**
  * @brief opcode function pointer array
  *        this array can be a global as it is read only
  *
  */
 static const opcode_handler_t opcode_table[OP_MAX] =
 {
-   op_nop,        op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rlca,
-   op_ld_mi16_sp, op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rrca,
+   op_nop,        op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rlca,
+   op_ld_mi16_sp, op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rrca,
 
-   op_stop,       op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rla,
-   op_jr_e8,      op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_rra,
+   op_stop,       op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rla,
+   op_jr_e8,      op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rra,
 
-   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  TODO,
-   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_cpl,
+   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  TODO,
+   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_cpl,
 
-   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_scf,
-   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,    op_dec_r8,    op_ld_r8_i8,  op_ccf,
+   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_scf,
+   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_ccf,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  TODO,         op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  TODO,         op_ld_r8_r8,
+   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_add_r8_r8,  op_add_r8_r8,  op_add_r8_r8, op_add_r8_r8, op_add_r8_r8, op_add_r8_r8, op_add_r8_r8, op_add_r8_r8,
-   op_adc_r8_r8,  op_adc_r8_r8,  op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8,
+   op_add_r8_r8,  op_add_r8_r8,  op_add_r8_r8, op_add_r8_r8, op_add_r8_r8,  op_add_r8_r8, op_add_r8_r8, op_add_r8_r8,
+   op_adc_r8_r8,  op_adc_r8_r8,  op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8,  op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   op_sub_r8_r8,  op_sub_r8_r8,  op_sub_r8_r8, op_sub_r8_r8, op_sub_r8_r8,  op_sub_r8_r8, op_sub_r8_r8, op_sub_r8_r8,
+   op_sbc_r8_r8,  op_sbc_r8_r8,  op_sbc_r8_r8, op_sbc_r8_r8, op_sbc_r8_r8,  op_sbc_r8_r8, op_sbc_r8_r8, op_sbc_r8_r8,
 
-   op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8, op_and_a_r8,
-   op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8, op_xor_a_r8,
+   op_and_a_r8,   op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,
+   op_xor_a_r8,   op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,
 
-   op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8, op_or_a_r8,
-   op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8, op_cp_a_r8,
+   op_or_a_r8,    op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,
+   op_cp_a_r8,    op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   op_ret_cc,     op_pop,        op_jp_c_i16,  op_jp_i16,    op_call_c_i16, op_push,      op_add_a_i8,  TODO,
+   op_ret_cc,     op_ret,        op_jp_c_i16,  TODO,         op_call_c_i16, op_call_i16,  op_adc_a_i8,  TODO,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   op_ret_cc,     op_pop,        op_jp_c_i16,  TODO,         op_call_c_i16, op_push,      op_sub_a_i8,  TODO,
+   op_ret_cc,     TODO,          op_jp_c_i16,  TODO,         op_call_c_i16, TODO,         op_sbc_a_i8,  TODO,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO,          TODO,          op_pop,       TODO,         TODO,          op_push,      op_and_a_i8,  TODO,
+   TODO,          TODO,          op_jp_hl,     TODO,         TODO,          TODO,         op_xor_a_i8,  TODO,
 
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
-   TODO, TODO, TODO, TODO, TODO, TODO, TODO, TODO,
+   TODO,          TODO,          op_pop,       TODO,         TODO,          op_push,      op_or_a_i8,   TODO,
+   TODO,          TODO,          TODO,         TODO,         TODO,          TODO,         op_cp_a_i8,   TODO,
 };
 
 /**

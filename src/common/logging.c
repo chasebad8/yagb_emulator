@@ -5,40 +5,43 @@
 #include "logging.h"
 
 /* ANSI color codes for terminal output */
-#define COLOR_RESET   "\033[0m"
-#define COLOR_RED     "\033[31m"
-#define COLOR_GREEN   "\033[32m"
-#define COLOR_YELLOW  "\033[33m"
-#define COLOR_BLUE    "\033[34m"
+#define COLOUR_RESET   "\033[0m"
+#define COLOUR_RED     "\033[31m"
+#define COLOUR_GREEN   "\033[32m"
+#define COLOUR_YELLOW  "\033[33m"
+#define COLOUR_BLUE    "\033[34m"
+#define COLOUR_PURPLE  "\033[35m"
 
-static const char* log_level_to_string(enum log_level level)
+static const char* log_level_to_string(uint8_t level)
 {
    switch(level)
    {
-      case LOG_DEBUG: return "DEBUG";
-      case LOG_INFO:  return "INFO";
-      case LOG_WARN:  return "WARN";
-      case LOG_ERROR: return "ERROR";
-      default:        return "UNKNOWN";
+      case LOG_LEVEL_OPCODE: return "OPCODE";
+      case LOG_LEVEL_DEBUG:  return "DEBUG";
+      case LOG_LEVEL_INFO:   return "INFO";
+      case LOG_LEVEL_WARN:   return "WARN";
+      case LOG_LEVEL_ERROR:  return "ERROR";
+      default:         return "UNKNOWN";
    }
 }
 
-static const char* log_level_to_color(enum log_level level)
+static const char* log_level_to_color(uint8_t level)
 {
    switch(level)
    {
-      case LOG_DEBUG: return COLOR_BLUE;
-      case LOG_INFO:  return COLOR_GREEN;
-      case LOG_WARN:  return COLOR_YELLOW;
-      case LOG_ERROR: return COLOR_RED;
-      default:        return COLOR_RESET;
+      case LOG_LEVEL_OPCODE: return COLOUR_PURPLE;
+      case LOG_LEVEL_DEBUG:  return COLOUR_BLUE;
+      case LOG_LEVEL_INFO:   return COLOUR_GREEN;
+      case LOG_LEVEL_WARN:   return COLOUR_YELLOW;
+      case LOG_LEVEL_ERROR:  return COLOUR_RED;
+      default:         return COLOUR_RESET;
    }
 }
 
-void yagb_log(enum  log_level level,
-              const char     *file,
-              int             line,
-              const char     *fmt,
+void yagb_log(uint8_t     level,
+              const char *file,
+              int         line,
+              const char *fmt,
               ...)
 {
    /* get color for this log level */
@@ -62,7 +65,7 @@ void yagb_log(enum  log_level level,
    fprintf(stdout, "[%s:%d]", file, line);
 #endif
 
-   fprintf(stdout, "%s[%s]%s ", color, log_level_to_string(level), COLOR_RESET);
+   fprintf(stdout, "%s[%s]%s ", color, log_level_to_string(level), COLOUR_RESET);
 
    /* create a variadic list struct */
    va_list ptr_arg;

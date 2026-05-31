@@ -95,30 +95,30 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
          case REGION_ROM:
             return cartridge_read(bus_p->rom, addr);
          case REGION_VRAM:
-            LOG_WARN("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            return 0xFF;
+            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
          case REGION_CARTRIDGE_RAM:
-            LOG_WARN("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            return 0xFF;
+            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
          case REGION_WRAM:
             return bus_p->wram[addr - 0xC000];
          case REGION_ECHO_RAM:
-            LOG_WARN("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            return 0xFF;
+            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
          case REGION_OAM:
-            LOG_WARN("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            return 0xFF;
+            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
          case REGION_UNUSABLE:
             LOG_ERROR("illegal read of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
-            LOG_WARN("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            return 0xFF;
+            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
          case REGION_HRAM:
             return bus_p->hram[addr - 0xFF80];
          case REGION_IE:
-            LOG_WARN("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            return 0xFF;
+            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
          default:
             return 0xFF;
       }
@@ -137,34 +137,38 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
       switch (bus_get_region(addr))
       {
          case REGION_ROM:
+#ifndef DEBUG_MODE
             LOG_ERROR("illegal write of rom requested: 0x%04X", addr);
+#else
+            cartridge_write(bus_p->rom, addr, value);
+#endif
             break;
          case REGION_VRAM:
-            LOG_WARN("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             break;
          case REGION_CARTRIDGE_RAM:
-            LOG_WARN("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             break;
          case REGION_WRAM:
             bus_p->wram[addr - 0xC000] = value;
             break;
          case REGION_ECHO_RAM:
-            LOG_WARN("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             break;
          case REGION_OAM:
-            LOG_WARN("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             break;
          case REGION_UNUSABLE:
             LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
-            LOG_WARN("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             break;
          case REGION_HRAM:
             bus_p->hram[addr - 0xFF80] = value;
             break;
          case REGION_IE:
-            LOG_WARN("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             break;
       }
    }

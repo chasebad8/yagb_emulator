@@ -58,4 +58,6 @@ void emulator_init(emulator_t *emulator);
 
 void emulator_load_game_cartridge(emulator_t *emulator, const char *game_cartridge_path);
 
+void emulator_unload_game_cartridge(emulator_t *emulator);
+
 #endif

@@ -17,8 +17,10 @@ void cartridge_init(cartridge_t *cartridge_p);
 
 void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path);
 
+void cartridge_unload(cartridge_t *cartridge_p);
+
 uint8_t cartridge_read(cartridge_t *cartridge_p, uint16_t addr);
 
-// Cartridge handling header
+void cartridge_write(cartridge_t *cartridge_p, uint16_t addr, uint8_t value);
 
 #endif // CARTRIDGE_H

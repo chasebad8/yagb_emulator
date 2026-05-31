@@ -1,25 +1,52 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
-enum log_level
-{
-   LOG_OPCODE,
-   LOG_DEBUG,
-   LOG_INFO,
-   LOG_WARN,
-   LOG_ERROR
-};
+#include <stdint.h>
 
-void yagb_log(enum  log_level level,
-              const char     *file,
-              int             line,
-              const char     *fmt,
+#ifndef LOG_LEVEL
+#define LOG_LEVEL 2
+#endif
+
+#define LOG_LEVEL_OPCODE 0
+#define LOG_LEVEL_DEBUG  1
+#define LOG_LEVEL_INFO   2
+#define LOG_LEVEL_WARN   3
+#define LOG_LEVEL_ERROR  4
+
+void yagb_log(uint8_t     level,
+              const char *file,
+              int         line,
+              const char *fmt,
               ...);
 
-#define LOG_OPCODE(...) (yagb_log(LOG_OPCODE, __FILE__, __LINE__, __VA_ARGS__))
-#define LOG_DEBUG(...) (yagb_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__))
-#define LOG_INFO(...) (yagb_log(LOG_INFO, __FILE__, __LINE__, __VA_ARGS__))
-#define LOG_WARN(...) (yagb_log(LOG_WARN, __FILE__, __LINE__, __VA_ARGS__))
-#define LOG_ERROR(...) (yagb_log(LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__))
+#if (defined LOG_OPCODES) || (LOG_LEVEL <= LOG_LEVEL_OPCODE)
+#define LOG_OPCODE(...) (yagb_log(LOG_LEVEL_OPCODE, __FILE__, __LINE__, __VA_ARGS__))
+#else
+#define LOG_OPCODE(...) ((void)0)
+#endif
+
+#if LOG_LEVEL <= LOG_LEVEL_DEBUG
+#define LOG_DEBUG(...) (yagb_log(LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__))
+#else
+#define LOG_DEBUG(...) ((void)0)
+#endif
+
+#if LOG_LEVEL <= LOG_LEVEL_INFO
+#define LOG_INFO(...)  (yagb_log(LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__))
+#else
+#define LOG_INFO(...) ((void)0)
+#endif
+
+#if LOG_LEVEL <= LOG_LEVEL_WARN
+#define LOG_WARN(...)  (yagb_log(LOG_LEVEL_WARN, __FILE__, __LINE__, __VA_ARGS__))
+#else
+#define LOG_WARN(...) ((void)0)
+#endif
+
+#if LOG_LEVEL <= LOG_LEVEL_ERROR
+#define LOG_ERROR(...) (yagb_log(LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__))
+#else
+#define LOG_ERROR(...) ((void)0)
+#endif
 
 #endif

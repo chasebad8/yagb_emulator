@@ -122,4 +122,12 @@ void cpu_init(cpu_t *cpu, bus_t *bus);
 
 void cpu_step(cpu_t *cpu);
 
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+void cpu_debug_run_opcode(cpu_t* cpu, uint8_t opcode);
+
 #endif // CPU_H

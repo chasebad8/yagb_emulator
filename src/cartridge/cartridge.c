@@ -16,6 +16,15 @@ void cartridge_init(cartridge_t *cartridge_p)
 
 void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
 {
+#ifdef DEBUG_MODE
+   cartridge_p->rom_size = MAX_ROM_SIZE;
+
+   if ((cartridge_p->rom = malloc(cartridge_p->rom_size)) == NULL)
+   {
+      LOG_ERROR("Failed to dynamically allocate memory for rom");
+      exit(-1);
+   }
+#else
    FILE *fptr = NULL;
    long cartridge_size = 0;
 
@@ -60,13 +69,14 @@ void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
          LOG_INFO("successfully loaded cartridge from %s. size: %lu bytes\n", cartridge_path, cartridge_p->rom_size);
       }
    }
+#endif
 }
 
 void cartridge_unload(cartridge_t *cartridge_p)
 {
    if (cartridge_p->rom == NULL)
    {
-      return;
+      ;
    }
    else
    {
@@ -79,6 +89,7 @@ void cartridge_unload(cartridge_t *cartridge_p)
 
 uint8_t cartridge_read(cartridge_t *cartridge_p, uint16_t addr)
 {
+#ifndef DEBUG_MODE
    /* assume addr is valid */
    if (cartridge_p->rom == NULL)
    {
@@ -89,4 +100,25 @@ uint8_t cartridge_read(cartridge_t *cartridge_p, uint16_t addr)
    {
       return cartridge_p->rom[addr];
    }
+#else
+   return cartridge_p->rom[addr];
+#endif
+}
+
+void cartridge_write(cartridge_t *cartridge_p, uint16_t addr, uint8_t value)
+{
+#ifndef DEBUG_MODE
+   /* assume addr is valid */
+   if (cartridge_p->rom == NULL)
+   {
+      LOG_ERROR("Cartridge not loaded");
+      exit(-1);
+   }
+   else
+   {
+      cartridge_p->rom[addr] = value;
+   }
+#else
+   cartridge_p->rom[addr] = value;
+#endif
 }

@@ -41,13 +41,35 @@
 #define READ_C(reg) (READ_FLD((reg), CARRY_POS))
 
 /**
+ * @brief to string function for r8
+ *        for logging
+ *
+ * @param reg_idx
+ * @return const char*
+ */
+static const char* r8_to_string(r8_idx_e reg_idx)
+{
+   switch(reg_idx)
+   {
+      case REG_B: return "B";
+      case REG_C: return "C";
+      case REG_D: return "D";
+      case REG_E: return "E";
+      case REG_H: return "H";
+      case REG_L: return "L";
+      case REG_HL_MEM: return "[HL]";
+      case REG_A: return "A";
+   }
+}
+
+/**
  * @brief read from a 8 bit CPU register
  *
  * @param cpu
  * @param reg_idx
  * @return uint8_t
  */
-static inline uint8_t read_r8(cpu_t *cpu, uint8_t reg_idx)
+static inline uint8_t read_r8(cpu_t *cpu, r8_idx_e reg_idx)
 {
    if(reg_idx > REG_8_MAX)
    {
@@ -102,6 +124,17 @@ static inline void write_r8(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
    }
 }
 
+static const char* r16_to_string(r16_idx_e reg_idx)
+{
+   switch(reg_idx)
+   {
+      case REG_BC: return "BC"; break;
+      case REG_DE: return "DE"; break;
+      case REG_HL: return "HL"; break;
+      case REG_SP: return "SP"; break;
+   }
+}
+
 /**
  * @brief read from a 16 bit CPU register
  *
@@ -120,9 +153,9 @@ static inline uint16_t read_r16(cpu_t *cpu, uint8_t reg_idx)
    {
       switch(reg_idx)
       {
-         case REG_BC: return cpu->BC; break;
-         case REG_DE: return cpu->DE; break;
-         case REG_HL: return cpu->HL; break;
+         case REG_BC: return (cpu->B << 8) | cpu->C; break;
+         case REG_DE: return (cpu->D << 8) | cpu->E; break;
+         case REG_HL: return (cpu->H << 8) | cpu->L; break;
          case REG_SP: return cpu->SP; break;
       }
    }
@@ -148,9 +181,9 @@ static inline void write_r16(cpu_t *cpu, uint8_t reg_idx, uint16_t value)
    {
       switch(reg_idx)
       {
-         case REG_BC: cpu->BC = value; break;
-         case REG_DE: cpu->DE = value; break;
-         case REG_HL: cpu->HL = value; break;
+         case REG_BC: cpu->B = (value >> 8); cpu->C = (value & 0xFF); break;
+         case REG_DE: cpu->D = (value >> 8); cpu->E = (value & 0xFF); break;
+         case REG_HL: cpu->H = (value >> 8); cpu->L = (value & 0xFF); break;
          case REG_SP: cpu->SP = value; break;
       }
    }
@@ -166,7 +199,7 @@ static inline void write_r16(cpu_t *cpu, uint8_t reg_idx, uint16_t value)
  */
 static inline uint8_t read_m16(cpu_t *cpu, uint8_t reg_idx)
 {
-   uint8_t addr = 0;
+   uint16_t addr = 0;
 
    if(reg_idx > MEM_16_MAX)
    {
@@ -177,10 +210,10 @@ static inline uint8_t read_m16(cpu_t *cpu, uint8_t reg_idx)
    {
       switch(reg_idx)
       {
-         case MEM_BC:     addr = cpu->BC;   break;
-         case MEM_DE:     addr = cpu->DE;   break;
-         case MEM_HL_ADD: addr = cpu->HL++; break;
-         case MEM_HL_SUB: addr = cpu->HL--; break;
+         case MEM_BC:     addr = (cpu->B << 8) | cpu->C;   break;
+         case MEM_DE:     addr = (cpu->D << 8) | cpu->E;   break;
+         case MEM_HL_ADD: addr = (cpu->H << 8) | cpu->L; cpu->HL++; break;
+         case MEM_HL_SUB: addr = (cpu->H << 8) | cpu->L; cpu->HL--; break;
       }
 
       return bus_read(cpu->bus, addr);
@@ -199,7 +232,7 @@ static inline uint8_t read_m16(cpu_t *cpu, uint8_t reg_idx)
  */
 static inline void write_m16(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
 {
-   uint8_t addr = 0;
+   uint16_t addr = 0;
 
    if(reg_idx > MEM_16_MAX)
    {
@@ -210,10 +243,10 @@ static inline void write_m16(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
    {
       switch(reg_idx)
       {
-         case MEM_BC:     addr = cpu->BC;   break;
-         case MEM_DE:     addr = cpu->DE;   break;
-         case MEM_HL_ADD: addr = cpu->HL++; break;
-         case MEM_HL_SUB: addr = cpu->HL--; break;
+         case MEM_BC:     addr = (cpu->B << 8) | cpu->C;   break;
+         case MEM_DE:     addr = (cpu->D << 8) | cpu->E;   break;
+         case MEM_HL_ADD: addr = (cpu->H << 8) | cpu->L; cpu->HL++; break;
+         case MEM_HL_SUB: addr = (cpu->H << 8) | cpu->L; cpu->HL--; break;
       }
 
       bus_write(cpu->bus, addr, value);
@@ -248,7 +281,7 @@ static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
  */
 static void op_nop(cpu_t *cpu, uint8_t opcode)
 {
-   LOG_DEBUG("opcode %0X NOP", opcode);
+   LOG_OPCODE("NOP");
 }
 
 /**
@@ -268,6 +301,8 @@ static void op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
    r16_idx_e dest_reg = ((opcode >> 4) & 0x3);
 
    write_r16(cpu, dest_reg, value);
+
+   LOG_OPCODE("LD %s, 0x%04X", r16_to_string(dest_reg), value);
 }
 
 /**
@@ -282,6 +317,8 @@ static void op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
    m16_idx_e src_reg = ((opcode >> 4) & 0x3);
 
    write_m16(cpu, src_reg, cpu->A);
+
+   LOG_OPCODE("LD [%s], A", r16_to_string((r16_idx_e)src_reg));
 }
 
 /**
@@ -296,6 +333,8 @@ static void op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
    r16_idx_e src_reg = ((opcode >> 4) & 0x3);
 
    cpu->A = read_m16(cpu, src_reg);
+
+   LOG_OPCODE("LD A, [%s]", r16_to_string((r16_idx_e)src_reg));
 }
 
 /**
@@ -316,6 +355,8 @@ static void op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
    /* write SP to memory (little endian) */
    bus_write(cpu->bus, addr,   (cpu->SP & 0xFF));
    bus_write(cpu->bus, addr+1, (cpu->SP >> 8) & 0xFF);
+
+   LOG_OPCODE("LD [0x%04X], SP", addr);
 }
 
 /**
@@ -330,6 +371,8 @@ static void op_inc_r16(cpu_t *cpu, uint8_t opcode)
    uint16_t  value   = read_r16(cpu, src_reg);
 
    write_r16(cpu, src_reg, ++value);
+
+   LOG_OPCODE("INC %s", r16_to_string(src_reg));
 }
 
 /**
@@ -344,6 +387,8 @@ static void op_dec_r16(cpu_t *cpu, uint8_t opcode)
    uint16_t  value   = read_r16(cpu, src_reg);
 
    write_r16(cpu, src_reg, --value);
+
+   LOG_OPCODE("DEC %s", r16_to_string(src_reg));
 }
 
 /**
@@ -370,6 +415,8 @@ static void op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFFFF));
+
+   LOG_OPCODE("ADD HL, %s", r16_to_string(src_reg));
 }
 
 /**
@@ -388,6 +435,8 @@ static void op_inc_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_Z(cpu->F, (val == 0));
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, ((val & 0x0F) == 0x0));
+
+   LOG_OPCODE("INC %s", r8_to_string(src_reg));
 }
 
 /**
@@ -406,6 +455,8 @@ static void op_dec_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_Z(cpu->F, (val == 0));
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, ((val & 0x0F) == 0xF));
+
+   LOG_OPCODE("DEC %s", r8_to_string(src_reg));
 }
 
 /**
@@ -421,6 +472,8 @@ static void op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
    uint8_t  value = bus_read(cpu->bus, cpu->PC++);
 
    write_r8(cpu, dest_reg, value);
+
+   LOG_OPCODE("LD %s, 0x%02X", r8_to_string(dest_reg), value);
 }
 
 /**
@@ -442,6 +495,8 @@ static void op_rlca(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("RLCA");
 }
 
 /**
@@ -463,6 +518,8 @@ static void op_rrca(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("RRCA");
 }
 
 /**
@@ -483,6 +540,8 @@ static void op_rla(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("RLA");
 }
 
 /**
@@ -504,6 +563,8 @@ static void op_rra(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("RRA");
 }
 
 /**
@@ -529,6 +590,8 @@ static void op_jr_e8(cpu_t *cpu, uint8_t opcode)
    {
       cpu->PC += offset;
    }
+
+   LOG_OPCODE("JR 0x%04X", cpu->PC);
 }
 
 /**
@@ -567,6 +630,8 @@ static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
    {
       cpu->PC += offset;
    }
+
+   LOG_OPCODE("JR CC, 0x%04X", cpu->PC);
 }
 
 /**
@@ -581,6 +646,8 @@ static void op_cpl(cpu_t *cpu, uint8_t opcode)
 
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, 1);
+
+   LOG_OPCODE("CPL");
 }
 
 /**
@@ -594,6 +661,8 @@ static void op_scf(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, 1);
+
+   LOG_OPCODE("SCF");
 }
 
 /**
@@ -607,6 +676,8 @@ static void op_ccf(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, ~READ_C(cpu->F));
+
+   LOG_OPCODE("CCF");
 }
 
 /**
@@ -618,6 +689,8 @@ static void op_ccf(cpu_t *cpu, uint8_t opcode)
 static void op_stop(cpu_t *cpu, uint8_t opcode)
 {
    LOG_INFO("opcode %0X STOP ... exiting", opcode);
+
+   LOG_OPCODE("STOP");
 }
 
 /**********************************************************
@@ -638,6 +711,8 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
    r8_idx_e dest_reg = (opcode >> 3) & 0x7;
 
    write_r8(cpu, dest_reg, read_r8(cpu, src_reg));
+
+   LOG_OPCODE("LD %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
 }
 
 /**********************************************************
@@ -676,6 +751,8 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
+
+   LOG_OPCODE("ADD %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
 }
 
 /**
@@ -704,6 +781,8 @@ static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
+
+   LOG_OPCODE("ADC %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
 }
 
 /**
@@ -731,6 +810,8 @@ static void op_sub_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, (dest_val < src_val));
+
+   LOG_OPCODE("SUB %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
 }
 
 /**
@@ -759,6 +840,8 @@ static void op_sbc_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, ((uint16_t)dest_val < ((uint16_t)src_val + (uint16_t)carry)));
+
+   LOG_OPCODE("SBC %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
 }
 
 /**
@@ -778,6 +861,8 @@ static void op_and_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 1);
    WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("AND A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -797,6 +882,8 @@ static void op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("XOR A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -816,6 +903,8 @@ static void op_or_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("OR A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -835,6 +924,8 @@ static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, (cpu->A & 0xF) < (value & 0xF));
    WRITE_C(cpu->F, (cpu->A < value));
+
+   LOG_OPCODE("CP A, %s", r8_to_string(src_reg));
 }
 
 /**********************************************************
@@ -865,6 +956,8 @@ static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
+
+   LOG_OPCODE("ADD A, 0x%02X", imm_val);
 }
 
 /**
@@ -892,6 +985,8 @@ static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
+
+   LOG_OPCODE("ADC A, 0x%02X", imm_val);
 }
 
 /**
@@ -917,6 +1012,8 @@ static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, (dest_val < imm_val));
+
+   LOG_OPCODE("SUB A, 0x%02X", imm_val);
 }
 
 /**
@@ -943,6 +1040,8 @@ static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, (dest_val < (imm_val + carry)));
+
+   LOG_OPCODE("SBC A, 0x%02X", imm_val);
 }
 
 /**
@@ -965,6 +1064,8 @@ static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 1);
    WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("AND A, 0x%02X", imm_val);
 }
 
 /**
@@ -987,6 +1088,8 @@ static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("OR A, 0x%02X", imm_val);
 }
 
 /**
@@ -1009,6 +1112,8 @@ static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("XOR A, 0x%02X", imm_val);
 }
 
 /**
@@ -1033,6 +1138,8 @@ static void op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_N(cpu->F, 1);
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, (dest_val < imm_val));
+
+   LOG_OPCODE("CP A, 0x%02X", imm_val);
 }
 
 /**
@@ -1048,6 +1155,8 @@ static void op_ret(cpu_t *cpu, uint8_t opcode)
    uint8_t pop_addr_high = bus_read(cpu->bus, cpu->SP++);
 
    cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
+
+   LOG_OPCODE("RET");
 }
 
 /**
@@ -1086,6 +1195,8 @@ static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
       pop_addr_high = bus_read(cpu->bus, cpu->SP++);
       cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
    }
+
+   LOG_OPCODE("RET CC");
 }
 
 /**
@@ -1117,6 +1228,8 @@ static void op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
    {
       cpu->PC = addr;
    }
+
+   LOG_OPCODE("JP CC, 0x%04X", addr);
 }
 
 /**
@@ -1132,6 +1245,8 @@ static void op_jp_i16(cpu_t *cpu, uint8_t opcode)
    uint16_t addr      = ((high_byte << 8) | low_byte);
 
    cpu->PC = addr;
+
+   LOG_OPCODE("JP 0x%04X", addr);
 }
 
 /**
@@ -1143,6 +1258,8 @@ static void op_jp_i16(cpu_t *cpu, uint8_t opcode)
 static void op_jp_hl(cpu_t *cpu, uint8_t opcode)
 {
    cpu->PC = cpu->HL;
+
+   LOG_OPCODE("JP HL");
 }
 
 /**
@@ -1182,6 +1299,8 @@ static void op_call_c_i16(cpu_t *cpu, uint8_t opcode)
       bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
       cpu->PC = addr;
    }
+
+   LOG_OPCODE("CALL CC, 0x%04X", addr);
 }
 
 /**
@@ -1202,6 +1321,8 @@ static void op_call_i16(cpu_t *cpu, uint8_t opcode)
    bus_write(cpu->bus, --cpu->SP, ((cpu->PC >> 8) & 0xFF));
    bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
    cpu->PC = addr;
+
+   LOG_OPCODE("CALL 0x%04X", addr);
 }
 
 /**
@@ -1224,6 +1345,8 @@ static void op_pop(cpu_t *cpu, uint8_t opcode)
       case 2: cpu->HL = value; break;
       case 3: cpu->AF = value; break;
    }
+
+   LOG_OPCODE("POP %s", r16_to_string((r16_idx_e)reg));
 }
 
 /**
@@ -1247,6 +1370,8 @@ static void op_push(cpu_t *cpu, uint8_t opcode)
 
    bus_write(cpu->bus, --cpu->SP, ((value >> 8) & 0xFF));
    bus_write(cpu->bus, --cpu->SP, (value & 0xFF));
+
+   LOG_OPCODE("PUSH %s", r16_to_string((r16_idx_e)reg));
 }
 
 /**
@@ -1254,7 +1379,7 @@ static void op_push(cpu_t *cpu, uint8_t opcode)
  *        this array can be a global as it is read only
  *
  */
-static const opcode_handler_t opcode_table[OP_MAX] =
+const opcode_handler_t opcode_table[OP_MAX] =
 {
    op_nop,        op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rlca,
    op_ld_mi16_sp, op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rrca,
@@ -1349,4 +1474,15 @@ void cpu_step(cpu_t *cpu)
       uint8_t opcode = bus_read(cpu->bus, cpu->PC++);
       opcode_table[opcode](cpu, opcode);
    }
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+void cpu_debug_run_opcode(cpu_t* cpu, uint8_t opcode)
+{
+   opcode_table[opcode](cpu, opcode);
 }

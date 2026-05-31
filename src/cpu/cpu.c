@@ -1440,16 +1440,16 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
 {
    LOG_DEBUG("initializing cpu ...");
 
-   cpu->A = 0;
-   cpu->B = 0;
-   cpu->C = 0;
-   cpu->D = 0;
-   cpu->E = 0;
-   cpu->F = 0;
-   cpu->H = 0;
-   cpu->L = 0;
-   cpu->PC = 0;
-   cpu->SP = 0;
+   cpu->A  = 0x0;
+   cpu->B  = 0x0;
+   cpu->C  = 0x0;
+   cpu->D  = 0x0;
+   cpu->E  = 0x0;
+   cpu->F  = 0x0;
+   cpu->H  = 0x0;
+   cpu->L  = 0x0;
+   cpu->PC = 0x0;
+   cpu->SP = 0x0;
 
    cpu->bus = bus;
 

@@ -54,9 +54,8 @@ target_include_directories(yagb_core_test PUBLIC
 
 #yagb test static library definitions
 target_compile_definitions(yagb_core_test PRIVATE
-   LOG_LEVEL=5
+   LOG_LEVEL=3
    LOG_OPCODES
-   EXIT_ON_BAD_OPCODE
    DEBUG_MODE
 )
 

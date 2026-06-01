@@ -727,24 +727,22 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
+static void op_add_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
-   r8_idx_e dest_reg = (opcode >> 3) & 0x7;
    uint8_t  src_val  = read_r8(cpu, src_reg);
-   uint8_t  dest_val = read_r8(cpu, dest_reg);
+   uint8_t  dest_val = cpu->A;
 
    /*
     *  half carry is based on the 4 bits overflowing into the 5th bit.
     *  example: 0x0100 1111 + 1 becomes
     *           0x0101 0000 half carry = TRUE!
     */
-   uint8_t half_carry = ((dest_val & 0x0F) + (src_val & 0x0F)) & 0x10;
-
+   uint8_t  half_carry = ((dest_val & 0x0F) + (src_val & 0x0F)) & 0x10;
    uint16_t result = (uint16_t)dest_val + (uint16_t)src_val;
    uint8_t  final_result = (uint8_t)result;
 
-   write_r8(cpu, dest_reg, final_result);
+   cpu->A = result;
 
    /* Set flags */
    WRITE_Z(cpu->F, (final_result == 0));
@@ -752,7 +750,7 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
 
-   LOG_OPCODE("ADD %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
+   LOG_OPCODE("ADD A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -761,28 +759,26 @@ static void op_add_r8_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
+static void op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
-   r8_idx_e dest_reg = (opcode >> 3) & 0x7;
    uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
    uint8_t  src_val  = read_r8(cpu, src_reg);
-   uint8_t  dest_val = read_r8(cpu, dest_reg);
+   uint8_t  dest_val = cpu->A;
 
    /* check half-carry (carry from bit 3 to bit 4) including carry flag */
-   uint8_t half_carry = ((dest_val & 0x0F) + (src_val & 0x0F) + carry) & 0x10;
-
+   uint8_t  half_carry = ((dest_val & 0x0F) + (src_val & 0x0F) + carry) & 0x10;
    uint16_t result = (uint16_t)dest_val + (uint16_t)src_val + (uint16_t)carry;
    uint8_t  final_result = (uint8_t)result;
 
-   write_r8(cpu, dest_reg, final_result);
+   cpu->A = result;
 
    WRITE_Z(cpu->F, (final_result == 0));
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, (half_carry != 0));
    WRITE_C(cpu->F, (result > 0xFF));
 
-   LOG_OPCODE("ADC %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
+   LOG_OPCODE("ADC A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -791,19 +787,17 @@ static void op_adc_r8_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_sub_r8_r8(cpu_t *cpu, uint8_t opcode)
+static void op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
-   r8_idx_e dest_reg = (opcode >> 3) & 0x7;
    uint8_t  src_val  = read_r8(cpu, src_reg);
-   uint8_t  dest_val = read_r8(cpu, dest_reg);
+   uint8_t  dest_val = cpu->A;
 
    /* check half-carry (borrow from bit 4) */
    uint8_t half_carry = (dest_val & 0x0F) < (src_val & 0x0F);
-
    uint8_t result = dest_val - src_val;
 
-   write_r8(cpu, dest_reg, result);
+   cpu->A = result;
 
    /* Set flags */
    WRITE_Z(cpu->F, (result == 0));
@@ -811,7 +805,7 @@ static void op_sub_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, (dest_val < src_val));
 
-   LOG_OPCODE("SUB %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
+   LOG_OPCODE("SUB A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -820,20 +814,19 @@ static void op_sub_r8_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_sbc_r8_r8(cpu_t *cpu, uint8_t opcode)
+static void op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
-   r8_idx_e dest_reg = (opcode >> 3) & 0x7;
+   r8_idx_e dest_reg = REG_A;
    uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
    uint8_t  src_val  = read_r8(cpu, src_reg);
    uint8_t  dest_val = read_r8(cpu, dest_reg);
 
    /* check half-carry (borrow from bit 4) including carry flag */
    uint8_t half_carry = (dest_val & 0x0F) < ((src_val & 0x0F) + carry);
-
    uint8_t result = dest_val - src_val - carry;
 
-   write_r8(cpu, dest_reg, result);
+   cpu->A = result;
 
    /* Set flags */
    WRITE_Z(cpu->F, (result == 0));
@@ -841,7 +834,7 @@ static void op_sbc_r8_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, half_carry);
    WRITE_C(cpu->F, ((uint16_t)dest_val < ((uint16_t)src_val + (uint16_t)carry)));
 
-   LOG_OPCODE("SBC %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
+   LOG_OPCODE("SBC A, %s", r8_to_string(src_reg));
 }
 
 /**
@@ -918,7 +911,7 @@ static void op_or_a_r8(cpu_t *cpu, uint8_t opcode)
 static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = opcode & 0x7;
-   uint8_t  value = (cpu->A | read_r8(cpu, src_reg));
+   uint8_t  value = read_r8(cpu, src_reg);
 
    WRITE_Z(cpu->F, (cpu->A == value));
    WRITE_N(cpu->F, 1);
@@ -940,8 +933,8 @@ static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t dest_val = cpu->A;
 
    /* check half-carry (carry from bit 3 to bit 4) */
    uint8_t half_carry = ((dest_val & 0x0F) + (imm_val & 0x0F)) & 0x10;
@@ -969,9 +962,9 @@ static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t carry    = (cpu->F >> CARRY_POS) & 0x1;
+   uint8_t dest_val = cpu->A;
 
    /* check half-carry (carry from bit 3 to bit 4) including carry flag */
    uint8_t half_carry = ((dest_val & 0x0F) + (imm_val & 0x0F) + carry) & 0x10;
@@ -997,8 +990,8 @@ static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t dest_val = cpu->A;
 
    /* check half-carry (borrow from bit 4) */
    uint8_t half_carry = (dest_val & 0x0F) < (imm_val & 0x0F);
@@ -1024,9 +1017,9 @@ static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t carry    = (cpu->F >> CARRY_POS) & 0x1;
+   uint8_t dest_val = cpu->A;
 
    /* check half-carry (borrow from bit 4) including carry flag */
    uint8_t half_carry = (dest_val & 0x0F) < ((imm_val & 0x0F) + carry);
@@ -1052,8 +1045,8 @@ static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t dest_val = cpu->A;
 
    uint8_t result = dest_val & imm_val;
 
@@ -1076,8 +1069,8 @@ static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t dest_val = cpu->A;
 
    uint8_t result = dest_val | imm_val;
 
@@ -1100,8 +1093,8 @@ static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t dest_val = cpu->A;
 
    uint8_t result = dest_val ^ imm_val;
 
@@ -1125,8 +1118,8 @@ static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
  */
 static void op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
 {
-   uint8_t  imm_val  = bus_read(cpu->bus, cpu->PC++);
-   uint8_t  dest_val = cpu->A;
+   uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t dest_val = cpu->A;
 
    /* check half-carry (borrow from bit 4) */
    uint8_t half_carry = (dest_val & 0x0F) < (imm_val & 0x0F);
@@ -1405,11 +1398,11 @@ const opcode_handler_t opcode_table[OP_MAX] =
    op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  TODO,         op_ld_r8_r8,
    op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_add_r8_r8,  op_add_r8_r8,  op_add_r8_r8, op_add_r8_r8, op_add_r8_r8,  op_add_r8_r8, op_add_r8_r8, op_add_r8_r8,
-   op_adc_r8_r8,  op_adc_r8_r8,  op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8,  op_adc_r8_r8, op_adc_r8_r8, op_adc_r8_r8,
+   op_add_a_r8,   op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,
+   op_adc_a_r8,   op_adc_a_r8,   op_adc_a_r8,  op_adc_a_r8,  op_adc_a_r8,   op_adc_a_r8,  op_adc_a_r8,  op_adc_a_r8,
 
-   op_sub_r8_r8,  op_sub_r8_r8,  op_sub_r8_r8, op_sub_r8_r8, op_sub_r8_r8,  op_sub_r8_r8, op_sub_r8_r8, op_sub_r8_r8,
-   op_sbc_r8_r8,  op_sbc_r8_r8,  op_sbc_r8_r8, op_sbc_r8_r8, op_sbc_r8_r8,  op_sbc_r8_r8, op_sbc_r8_r8, op_sbc_r8_r8,
+   op_sub_a_r8,   op_sub_a_r8,   op_sub_a_r8,  op_sub_a_r8,  op_sub_a_r8,   op_sub_a_r8,  op_sub_a_r8,  op_sub_a_r8,
+   op_sbc_a_r8,   op_sbc_a_r8,   op_sbc_a_r8,  op_sbc_a_r8,  op_sbc_a_r8,   op_sbc_a_r8,  op_sbc_a_r8,  op_sbc_a_r8,
 
    op_and_a_r8,   op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,
    op_xor_a_r8,   op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,

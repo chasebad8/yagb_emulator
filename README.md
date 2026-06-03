@@ -95,3 +95,13 @@ Handles ROM loading, memory mapping, and cartridge-specific features like bank s
 
 ### Common (`src/common/`)
 Provides utility functions including logging and debugging support.
+
+## References
+instruction set and flags
+https://gbdev.io/pandocs/CPU_Instruction_Set.html
+
+optable
+https://gbdev.io/gb-opcodes/optables/
+
+opcode description
+https://rgbds.gbdev.io/docs/v1.0.1/gbz80.7

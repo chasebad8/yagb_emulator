@@ -79,6 +79,48 @@ void test_op_ld(void)
    cpu_debug_run_opcode(&emu.cpu, OP_LD_A_DE);
    TEST_ASSERT_EQUAL_HEX(0xAB, emu.cpu.A);
 
+   /* ldi hl, a */
+   emu.cpu.PC = 0;
+   emu.cpu.HL = 0x0005;
+   emu.cpu.A = 0xAB;
+   cpu_debug_run_opcode(&emu.cpu, OP_LDI_HL_A);
+   TEST_ASSERT_EQUAL_HEX(0xAB, emu.rom.rom[0x0005]);
+   TEST_ASSERT_EQUAL_HEX(0x0006, emu.cpu.HL);
+
+   /* ldd hl, a */
+   emu.cpu.PC = 0;
+   emu.cpu.HL = 0x0005;
+   emu.cpu.A = 0xCD;
+   cpu_debug_run_opcode(&emu.cpu, OP_LDD_HL_A);
+   TEST_ASSERT_EQUAL_HEX(0xCD, emu.rom.rom[0x0005]);
+   TEST_ASSERT_EQUAL_HEX(0x0004, emu.cpu.HL);
+
+   /* ldi a, hl */
+   emu.cpu.PC = 0;
+   emu.cpu.HL = 0x0007;
+   emu.rom.rom[0x0007] = 0xEF;
+   emu.cpu.A = 0x00;
+   cpu_debug_run_opcode(&emu.cpu, OP_LDI_A_HL);
+   TEST_ASSERT_EQUAL_HEX(0xEF, emu.cpu.A);
+   TEST_ASSERT_EQUAL_HEX(0x0008, emu.cpu.HL);
+
+   /* ld hl, a */
+   emu.cpu.PC = 0;
+   emu.cpu.HL = 0x0010;
+   emu.cpu.A = 0xAA;
+   cpu_debug_run_opcode(&emu.cpu, OP_LD_HL_A);
+   TEST_ASSERT_EQUAL_HEX(0xAA, emu.rom.rom[0x0010]);
+   TEST_ASSERT_EQUAL_HEX(0x0010, emu.cpu.HL);
+
+   /* ldd a, hl */
+   emu.cpu.PC = 0;
+   emu.cpu.HL = 0x0007;
+   emu.rom.rom[0x0007] = 0xF0;
+   emu.cpu.A = 0x00;
+   cpu_debug_run_opcode(&emu.cpu, OP_LDD_A_HL);
+   TEST_ASSERT_EQUAL_HEX(0xF0, emu.cpu.A);
+   TEST_ASSERT_EQUAL_HEX(0x0006, emu.cpu.HL);
+
    /* ld [imm16], sp */
    emu.cpu.PC = 0;
    emu.cpu.SP = 0xABCD;
@@ -121,6 +163,22 @@ void test_op_inc_dec(void)
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x1 , READ_N(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_H(emu.cpu.F));
+
+   /* inc h - half-carry boundary */
+   emu.cpu.H = 0x0F;
+   cpu_debug_run_opcode(&emu.cpu, OP_INC_H);
+   TEST_ASSERT_EQUAL_HEX(0x10, emu.cpu.H);
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_N(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_H(emu.cpu.F));
+
+   /* dec l - zero to 0xFF */
+   emu.cpu.L = 0x00;
+   cpu_debug_run_opcode(&emu.cpu, OP_DEC_L);
+   TEST_ASSERT_EQUAL_HEX(0xFF, emu.cpu.L);
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_N(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_H(emu.cpu.F));
 
    /* inc r8 - half-carry */
    emu.cpu.C = 0xFF;
@@ -185,6 +243,18 @@ void test_op_artithmetic(void)
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_N(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_H(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_C(emu.cpu.F));
+
+   /* adc a, imm8 with carry and half-carry */
+   emu.cpu.PC = 0x0;
+   emu.cpu.A = 0x0F;
+   WRITE_C(emu.cpu.F, 1);
+   emu.rom.rom[0x0000] = 0x01;
+   cpu_debug_run_opcode(&emu.cpu, OP_ADC_A_N);
+   TEST_ASSERT_EQUAL_HEX(0x11, emu.cpu.A);
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_N(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_H(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_C(emu.cpu.F));
 
 #if 0 /* add sp, imm8 not implemented yet*/
@@ -409,13 +479,187 @@ void test_op_artithmetic(void)
    emulator_unload_game_cartridge(&emu);
 }
 
+void test_op_pc_misc(void)
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   /* jp cond, imm16 */
+   emu.rom.rom[0x0000] = 0x05;
+   emu.rom.rom[0x0001] = 0x00;
+   WRITE_Z(emu.cpu.F, 0x0);
+   cpu_debug_run_opcode(&emu.cpu, OP_JP_Z_NN);
+   TEST_ASSERT_EQUAL_HEX(0x0002, emu.cpu.PC);
+
+   /* jp cond, imm16 */
+   emu.cpu.PC = 0x0;
+   WRITE_Z(emu.cpu.F, 0x1);
+   cpu_debug_run_opcode(&emu.cpu, OP_JP_Z_NN);
+   TEST_ASSERT_EQUAL_HEX(0x0005, emu.cpu.PC);
+
+   /* ret cond */
+   emu.cpu.PC = 0x0;
+   emu.cpu.SP = 0x000A;
+   emu.rom.rom[0x000A] = 0x02;
+   emu.rom.rom[0x000B] = 0x00;
+   WRITE_C(emu.cpu.F, 0x0);
+   cpu_debug_run_opcode(&emu.cpu, OP_RET_NC);
+   TEST_ASSERT_EQUAL_HEX(0x0002, emu.cpu.PC);
+
+   /* ret cond */
+   emu.cpu.PC = 0x0;
+   emu.cpu.SP = 0x000A;
+   emu.rom.rom[0x000A] = 0x02;
+   emu.rom.rom[0x000B] = 0x00;
+   WRITE_C(emu.cpu.F, 0x1);
+   cpu_debug_run_opcode(&emu.cpu, OP_RET_NC);
+   TEST_ASSERT_EQUAL_HEX(0x0000, emu.cpu.PC);
+
+   /* call cond, imm16 */
+   emu.cpu.PC = 0x0002;
+   emu.cpu.SP = 0x00AA;
+   emu.rom.rom[0x0002] = 0x07;
+   emu.rom.rom[0x0003] = 0x00;
+   WRITE_C(emu.cpu.F, 0x0);
+   cpu_debug_run_opcode(&emu.cpu, OP_CALL_NC_NN);
+   TEST_ASSERT_EQUAL_HEX(0x0007, emu.cpu.PC);
+   TEST_ASSERT_EQUAL_HEX(0x00A8, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x04,   emu.rom.rom[0x00A8]);
+   TEST_ASSERT_EQUAL_HEX(0x00,   emu.rom.rom[0x00A9]);
+
+   /* call cond, imm16 */
+   emu.cpu.PC = 0x0002;
+   emu.cpu.SP = 0x00AA;
+   emu.rom.rom[0x000A8] = 0x00;
+   emu.rom.rom[0x000A9] = 0x00;
+   WRITE_C(emu.cpu.F, 0x1);
+   cpu_debug_run_opcode(&emu.cpu, OP_CALL_NC_NN);
+   TEST_ASSERT_EQUAL_HEX(0x0004, emu.cpu.PC);
+   TEST_ASSERT_EQUAL_HEX(0x00AA, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x00,   emu.rom.rom[0x00A8]);
+   TEST_ASSERT_EQUAL_HEX(0x00,   emu.rom.rom[0x00A9]);
+
+   /* push r16stk */
+   emu.cpu.BC = 0x1234;
+   cpu_debug_run_opcode(&emu.cpu, OP_PUSH_BC);
+   TEST_ASSERT_EQUAL_HEX(0x1234, emu.cpu.BC);
+   TEST_ASSERT_EQUAL_HEX(0x00A8, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x34,   emu.rom.rom[0x00A8]);
+   TEST_ASSERT_EQUAL_HEX(0x12,   emu.rom.rom[0x00A9]);
+
+   /* pop r16stk */
+   emu.cpu.BC = 0x0000;
+   cpu_debug_run_opcode(&emu.cpu, OP_POP_BC);
+   TEST_ASSERT_EQUAL_HEX(0x1234, emu.cpu.BC);
+   TEST_ASSERT_EQUAL_HEX(0x00AA, emu.cpu.SP);
+
+   /* push af / pop af round trip */
+   emu.cpu.AF = 0x0F0F;
+   emu.cpu.SP = 0x00AA;
+   cpu_debug_run_opcode(&emu.cpu, OP_PUSH_AF);
+   TEST_ASSERT_EQUAL_HEX(0x00A8, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x0F, emu.rom.rom[0x00A8]);
+   TEST_ASSERT_EQUAL_HEX(0x0F, emu.rom.rom[0x00A9]);
+
+   emu.cpu.AF = 0x0000;
+   cpu_debug_run_opcode(&emu.cpu, OP_POP_AF);
+   TEST_ASSERT_EQUAL_HEX(0x0F0F, emu.cpu.AF);
+   TEST_ASSERT_EQUAL_HEX(0x00AA, emu.cpu.SP);
+
+   /* scf */
+   WRITE_C(emu.cpu.F, 0);
+   cpu_debug_run_opcode(&emu.cpu, OP_SCF);
+   TEST_ASSERT_EQUAL_HEX(1, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0, READ_N(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0, READ_H(emu.cpu.F));
+
+   /* ccf */
+   WRITE_C(emu.cpu.F, 0);
+   cpu_debug_run_opcode(&emu.cpu, OP_CCF);
+   TEST_ASSERT_EQUAL_HEX(1, READ_C(emu.cpu.F));
+   cpu_debug_run_opcode(&emu.cpu, OP_CCF);
+   TEST_ASSERT_EQUAL_HEX(0, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0, READ_N(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0, READ_H(emu.cpu.F));
+
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_op_bit_shifting(void)
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   /* rlca */
+   emu.cpu.A = 0x10;
+   cpu_debug_run_opcode(&emu.cpu, OP_RLCA);
+   TEST_ASSERT_EQUAL_HEX(0x0, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x20, emu.cpu.A);
+
+   /* rlca */
+   emu.cpu.A = 0x81;
+   cpu_debug_run_opcode(&emu.cpu, OP_RLCA);
+   TEST_ASSERT_EQUAL_HEX(1, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x03, emu.cpu.A);
+
+   /* rrca */
+   emu.cpu.A = 0x10;
+   WRITE_C(emu.cpu.F, 0);
+   cpu_debug_run_opcode(&emu.cpu, OP_RRCA);
+   TEST_ASSERT_EQUAL_HEX(0x0, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x08, emu.cpu.A);
+
+   /* rrca */
+   emu.cpu.A = 0x81;
+   cpu_debug_run_opcode(&emu.cpu, OP_RRCA);
+   TEST_ASSERT_EQUAL_HEX(1, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0xC0, emu.cpu.A);
+
+   /* rra */
+   emu.cpu.A = 0x10;
+   WRITE_C(emu.cpu.F, 0);
+   cpu_debug_run_opcode(&emu.cpu, OP_RRA);
+   TEST_ASSERT_EQUAL_HEX(0x0, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x08, emu.cpu.A);
+
+   /* rra */
+   emu.cpu.A = 0x81;
+   cpu_debug_run_opcode(&emu.cpu, OP_RRA);
+   TEST_ASSERT_EQUAL_HEX(1, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x40, emu.cpu.A);
+   cpu_debug_run_opcode(&emu.cpu, OP_RRA);
+   TEST_ASSERT_EQUAL_HEX(0, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0xA0, emu.cpu.A);
+
+   /* rla */
+   emu.cpu.A = 0x81;
+   WRITE_C(emu.cpu.F, 0);
+   cpu_debug_run_opcode(&emu.cpu, OP_RLA);
+   TEST_ASSERT_EQUAL_HEX(1, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x02, emu.cpu.A);
+   cpu_debug_run_opcode(&emu.cpu, OP_RLA);
+   TEST_ASSERT_EQUAL_HEX(0, READ_C(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x05, emu.cpu.A);
+
+   emulator_unload_game_cartridge(&emu);
+}
+
 int main(void)
 {
-    UNITY_BEGIN();
+   UNITY_BEGIN();
 
-    RUN_TEST(test_op_ld);
-    RUN_TEST(test_op_inc_dec);
-    RUN_TEST(test_op_artithmetic);
+   TEST_MESSAGE("Running opcode unit tests ...");
 
-    return UNITY_END();
+   RUN_TEST(test_op_ld);
+   RUN_TEST(test_op_inc_dec);
+   RUN_TEST(test_op_artithmetic);
+   RUN_TEST(test_op_pc_misc);
+   RUN_TEST(test_op_bit_shifting);
+
+   return UNITY_END();
 }

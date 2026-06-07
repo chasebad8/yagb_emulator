@@ -614,11 +614,11 @@ static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
       LOG_ERROR("invalid jump attempted, addr will underflow 0x%0X", (cpu->PC + offset));
       exit(-1);
    }
-   else if ((flag == 0) && (READ_N(cpu->F) == false))
+   else if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
       cpu->PC += offset;
    }
-   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
       cpu->PC += offset;
    }
@@ -675,7 +675,7 @@ static void op_ccf(cpu_t *cpu, uint8_t opcode)
 {
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
-   WRITE_C(cpu->F, ~READ_C(cpu->F));
+   WRITE_C(cpu->F, !READ_C(cpu->F));
 
    LOG_OPCODE("CCF");
 }
@@ -1166,11 +1166,11 @@ static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
    uint8_t flag = (opcode >> 3) & 0x3;
    bool    ret = false;
 
-   if ((flag == 0) && (READ_N(cpu->F) == false))
+   if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
       ret = true;
    }
-   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
       ret = true;
    }
@@ -1182,7 +1182,8 @@ static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
    {
       ret = true;
    }
-   else if (ret == true)
+
+   if (ret == true)
    {
       pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
       pop_addr_high = bus_read(cpu->bus, cpu->SP++);
@@ -1205,11 +1206,11 @@ static void op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
    uint16_t addr      = ((high_byte << 8) | low_byte);
    uint8_t  flag      = (opcode >> 3) & 0x3;
 
-   if ((flag == 0) && (READ_N(cpu->F) == false))
+   if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
       cpu->PC = addr;
    }
-   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
       cpu->PC = addr;
    }
@@ -1269,11 +1270,11 @@ static void op_call_c_i16(cpu_t *cpu, uint8_t opcode)
    uint8_t  flag = (opcode >> 3) & 0x3;
    bool     call = false;
 
-   if ((flag == 0) && (READ_N(cpu->F) == false))
+   if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
       call = true;
    }
-   else if ((flag == 1) && (READ_N(cpu->F) == true))
+   else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
       call = true;
    }
@@ -1286,7 +1287,7 @@ static void op_call_c_i16(cpu_t *cpu, uint8_t opcode)
       call = true;
    }
 
-   if (call)
+   if (call == true)
    {
       bus_write(cpu->bus, --cpu->SP, ((cpu->PC >> 8) & 0xFF));
       bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
@@ -1419,7 +1420,7 @@ const opcode_handler_t opcode_table[OP_MAX] =
    TODO,          TODO,          op_pop,       TODO,         TODO,          op_push,      op_and_a_i8,  TODO,
    TODO,          TODO,          op_jp_hl,     TODO,         TODO,          TODO,         op_xor_a_i8,  TODO,
 
-   TODO,          TODO,          op_pop,       TODO,         TODO,          op_push,      op_or_a_i8,   TODO,
+   TODO,          op_pop,        TODO,         TODO,         TODO,          op_push,      op_or_a_i8,   TODO,
    TODO,          TODO,          TODO,         TODO,         TODO,          TODO,         op_cp_a_i8,   TODO,
 };
 

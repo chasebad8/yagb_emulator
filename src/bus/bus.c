@@ -139,36 +139,43 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
          case REGION_ROM:
 #ifndef DEBUG_MODE
             LOG_ERROR("illegal write of rom requested: 0x%04X", addr);
+            exit(-1);
 #else
             cartridge_write(bus_p->rom, addr, value);
 #endif
             break;
          case REGION_VRAM:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
             break;
          case REGION_CARTRIDGE_RAM:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
             break;
          case REGION_WRAM:
             bus_p->wram[addr - 0xC000] = value;
             break;
          case REGION_ECHO_RAM:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
             break;
          case REGION_OAM:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
             break;
          case REGION_UNUSABLE:
             LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
             break;
          case REGION_HRAM:
             bus_p->hram[addr - 0xFF80] = value;
             break;
          case REGION_IE:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
+            exit(-1);
             break;
       }
    }

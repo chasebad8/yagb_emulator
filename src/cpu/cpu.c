@@ -269,6 +269,21 @@ static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
 }
 #define TODO op_unimplemented
 
+/**
+ * @brief opcode not yet implemented placeholder
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_invalid(cpu_t *cpu, uint8_t opcode)
+{
+   LOG_ERROR("opcode 0x%0X is not a valid opcode", opcode);
+
+#ifdef EXIT_ON_BAD_OPCODE
+   exit(-1);
+#endif
+}
+#define INVALID op_invalid
 /**********************************************************
                      BLOCK 0 OPCODES
 ***********************************************************/
@@ -1369,6 +1384,106 @@ static void op_push(cpu_t *cpu, uint8_t opcode)
 }
 
 /**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
+{
+   bus_write(cpu->bus, 0xFF00 + cpu->C, cpu->A);
+
+   LOG_OPCODE("LDH [C], A");
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t offset = bus_read(cpu->bus, cpu->PC++);
+   bus_write(cpu->bus, 0xFF00 + offset, cpu->A);
+
+   LOG_OPCODE("LDH [0x%02X], A", offset);
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->A = bus_read(cpu->bus, 0xFF00 + cpu->C);
+
+   LOG_OPCODE("LDH A, [C]");
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t offset = bus_read(cpu->bus, cpu->PC++);
+   cpu->A = bus_read(cpu->bus, 0xFF00 + offset);
+
+   LOG_OPCODE("LDH A, [0x%02X]", offset);
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ei(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->IME = 1;
+
+   LOG_OPCODE("EI");
+}
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_di(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->IME = 0;
+
+   LOG_OPCODE("DI");
+}
+
+/**
+ * @brief restart - push current PC to stack and
+ *        jump to one of 8 fixed locations in memory.
+ *        the target location is determined by the
+ *        opcode divided by 8.
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t rst_addr = ((opcode >> 3) & 0x7) << 3;
+
+   bus_write(cpu->bus, --cpu->SP, ((cpu->PC >> 8) & 0xFF));
+   bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
+   cpu->PC = rst_addr;
+
+   LOG_OPCODE("RST 0x%04X", rst_addr);
+}
+
+/**
  * @brief opcode function pointer array
  *        this array can be a global as it is read only
  *
@@ -1411,17 +1526,17 @@ const opcode_handler_t opcode_table[OP_MAX] =
    op_or_a_r8,    op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,
    op_cp_a_r8,    op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,
 
-   op_ret_cc,     op_pop,        op_jp_c_i16,  op_jp_i16,    op_call_c_i16, op_push,      op_add_a_i8,  TODO,
-   op_ret_cc,     op_ret,        op_jp_c_i16,  TODO,         op_call_c_i16, op_call_i16,  op_adc_a_i8,  TODO,
+   op_ret_cc,     op_pop,        op_jp_c_i16,  op_jp_i16,    op_call_c_i16, op_push,      op_add_a_i8,  op_rst_tgt3,
+   op_ret_cc,     op_ret,        op_jp_c_i16,  TODO,         op_call_c_i16, op_call_i16,  op_adc_a_i8,  op_rst_tgt3,
 
-   op_ret_cc,     op_pop,        op_jp_c_i16,  TODO,         op_call_c_i16, op_push,      op_sub_a_i8,  TODO,
-   op_ret_cc,     TODO,          op_jp_c_i16,  TODO,         op_call_c_i16, TODO,         op_sbc_a_i8,  TODO,
+   op_ret_cc,     op_pop,        op_jp_c_i16,  INVALID,      op_call_c_i16, op_push,      op_sub_a_i8,  op_rst_tgt3,
+   op_ret_cc,     TODO,          op_jp_c_i16,  INVALID,      op_call_c_i16, INVALID,      op_sbc_a_i8,  op_rst_tgt3,
 
-   TODO,          TODO,          op_pop,       TODO,         TODO,          op_push,      op_and_a_i8,  TODO,
-   TODO,          TODO,          op_jp_hl,     TODO,         TODO,          TODO,         op_xor_a_i8,  TODO,
+   op_ldh_i8_a,   op_pop,        op_ldh_c_a,   INVALID,      INVALID,       op_push,      op_and_a_i8,  op_rst_tgt3,
+   TODO,          TODO,          op_jp_hl,     INVALID,      INVALID,       INVALID,      op_xor_a_i8,  op_rst_tgt3,
 
-   TODO,          op_pop,        TODO,         TODO,         TODO,          op_push,      op_or_a_i8,   TODO,
-   TODO,          TODO,          TODO,         TODO,         TODO,          TODO,         op_cp_a_i8,   TODO,
+   op_ldh_a_i8,   op_pop,        op_ldh_a_c,   op_di,        INVALID,       op_push,      op_or_a_i8,   op_rst_tgt3,
+   TODO,          TODO,          TODO,         op_ei,        INVALID,       INVALID,      op_cp_a_i8,   op_rst_tgt3,
 };
 
 /**

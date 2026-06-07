@@ -112,6 +112,8 @@ typedef struct
    uint16_t SP; /* stack pointer */
    uint16_t PC; /* program counter */
 
+   uint8_t IME; /* interrupt master enable flag */
+
    bus_t *bus; /* pointer to bus instance */
 
 } cpu_t;

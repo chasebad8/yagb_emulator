@@ -541,8 +541,18 @@ void test_op_pc_misc(void)
    TEST_ASSERT_EQUAL_HEX(0x00,   emu.rom.rom[0x00A8]);
    TEST_ASSERT_EQUAL_HEX(0x00,   emu.rom.rom[0x00A9]);
 
+   /* rst 0x18 */
+   emu.cpu.PC = 0x1234;
+   emu.cpu.SP = 0x00AA;
+   cpu_debug_run_opcode(&emu.cpu, OP_RST_3);
+   TEST_ASSERT_EQUAL_HEX(0x0018, emu.cpu.PC);
+   TEST_ASSERT_EQUAL_HEX(0x00A8, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x34,   emu.rom.rom[0x00A8]);
+   TEST_ASSERT_EQUAL_HEX(0x12,   emu.rom.rom[0x00A9]);
+
    /* push r16stk */
    emu.cpu.BC = 0x1234;
+   emu.cpu.SP = 0x00AA;
    cpu_debug_run_opcode(&emu.cpu, OP_PUSH_BC);
    TEST_ASSERT_EQUAL_HEX(0x1234, emu.cpu.BC);
    TEST_ASSERT_EQUAL_HEX(0x00A8, emu.cpu.SP);

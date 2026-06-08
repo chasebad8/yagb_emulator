@@ -375,6 +375,46 @@ static void op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
 }
 
 /**
+ * @brief load the current stack pointer value
+ *        into the memory address given by the
+ *        next two immediate bytes
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
+{
+   /* read the address from the next 2 immediate bytes (little endian) */
+   uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
+   uint16_t addr      = ((high_byte << 8) | low_byte);
+
+   bus_write(cpu->bus, addr, cpu->A);
+
+   LOG_OPCODE("LD [0x%04X], A", addr);
+}
+
+/**
+ * @brief load the current stack pointer value
+ *        into the memory address given by the
+ *        next two immediate bytes
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
+{
+   /* read the address from the next 2 immediate bytes (little endian) */
+   uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
+   uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
+   uint16_t addr      = ((high_byte << 8) | low_byte);
+
+   cpu->A = bus_read(cpu->bus, addr);
+
+   LOG_OPCODE("LD A, [0x%04X]", addr);
+}
+
+/**
  * @brief increment the value in register r16 by 1
  *
  * @param cpu
@@ -969,6 +1009,65 @@ static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
 }
 
 /**
+ * @brief add signed immediate 8-bit value to the stack pointer
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
+{
+   int8_t  imm_val = (int8_t)bus_read(cpu->bus, cpu->PC++);
+   uint16_t orig_sp = cpu->SP;
+
+   uint16_t result = cpu->SP + imm_val;
+
+   WRITE_Z(cpu->F, 0);
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, (((orig_sp & 0x0F) + ((uint16_t)imm_val & 0x0F)) > 0x0F));
+   WRITE_C(cpu->F, (((orig_sp & 0xFF) + ((uint16_t)imm_val & 0xFF)) > 0xFF));
+
+   cpu->SP = result;
+
+   LOG_OPCODE("ADD SP, 0x%02X", (uint8_t)imm_val);
+}
+
+/**
+ * @brief load HL with SP plus signed immediate offset
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
+{
+   int8_t  imm_val = (int8_t)bus_read(cpu->bus, cpu->PC++);
+   uint16_t orig_sp = cpu->SP;
+
+   uint16_t result = cpu->SP + imm_val;
+
+   WRITE_Z(cpu->F, 0);
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, (((orig_sp & 0x0F) + ((uint16_t)imm_val & 0x0F)) > 0x0F));
+   WRITE_C(cpu->F, (((orig_sp & 0xFF) + ((uint16_t)imm_val & 0xFF)) > 0xFF));
+
+   cpu->HL = result;
+
+   LOG_OPCODE("LD HL, SP+0x%02X", (uint8_t)imm_val);
+}
+
+/**
+ * @brief load SP from HL
+ *
+ * @param cpu
+ * @param opcode
+ */
+static void op_ld_sp_hl(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->SP = cpu->HL;
+
+   LOG_OPCODE("LD SP, HL");
+}
+
+/**
  * @brief add immediate 8-bit value to register A
  *        with carry
  *
@@ -1490,53 +1589,53 @@ static void op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
  */
 const opcode_handler_t opcode_table[OP_MAX] =
 {
-   op_nop,        op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rlca,
-   op_ld_mi16_sp, op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rrca,
+   op_nop,         op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rlca,
+   op_ld_mi16_sp,  op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rrca,
 
-   op_stop,       op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rla,
-   op_jr_e8,      op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rra,
+   op_stop,        op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rla,
+   op_jr_e8,       op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rra,
 
-   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  TODO,
-   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_cpl,
+   op_jr_cc_e8,    op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  TODO,
+   op_jr_cc_e8,    op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_cpl,
 
-   op_jr_cc_e8,   op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_scf,
-   op_jr_cc_e8,   op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_ccf,
+   op_jr_cc_e8,    op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_scf,
+   op_jr_cc_e8,    op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_ccf,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  TODO,         op_ld_r8_r8,
-   op_ld_r8_r8,   op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  TODO,         op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_add_a_r8,   op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,
-   op_adc_a_r8,   op_adc_a_r8,   op_adc_a_r8,  op_adc_a_r8,  op_adc_a_r8,   op_adc_a_r8,  op_adc_a_r8,  op_adc_a_r8,
+   op_add_a_r8,    op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,
+   op_adc_a_r8,    op_adc_a_r8,   op_adc_a_r8,  op_adc_a_r8,  op_adc_a_r8,   op_adc_a_r8,  op_adc_a_r8,  op_adc_a_r8,
 
-   op_sub_a_r8,   op_sub_a_r8,   op_sub_a_r8,  op_sub_a_r8,  op_sub_a_r8,   op_sub_a_r8,  op_sub_a_r8,  op_sub_a_r8,
-   op_sbc_a_r8,   op_sbc_a_r8,   op_sbc_a_r8,  op_sbc_a_r8,  op_sbc_a_r8,   op_sbc_a_r8,  op_sbc_a_r8,  op_sbc_a_r8,
+   op_sub_a_r8,    op_sub_a_r8,   op_sub_a_r8,  op_sub_a_r8,  op_sub_a_r8,   op_sub_a_r8,  op_sub_a_r8,  op_sub_a_r8,
+   op_sbc_a_r8,    op_sbc_a_r8,   op_sbc_a_r8,  op_sbc_a_r8,  op_sbc_a_r8,   op_sbc_a_r8,  op_sbc_a_r8,  op_sbc_a_r8,
 
-   op_and_a_r8,   op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,
-   op_xor_a_r8,   op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,
+   op_and_a_r8,    op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,   op_and_a_r8,  op_and_a_r8,  op_and_a_r8,
+   op_xor_a_r8,    op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,   op_xor_a_r8,  op_xor_a_r8,  op_xor_a_r8,
 
-   op_or_a_r8,    op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,
-   op_cp_a_r8,    op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,
+   op_or_a_r8,     op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,    op_or_a_r8,   op_or_a_r8,   op_or_a_r8,
+   op_cp_a_r8,     op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,
 
-   op_ret_cc,     op_pop,        op_jp_c_i16,  op_jp_i16,    op_call_c_i16, op_push,      op_add_a_i8,  op_rst_tgt3,
-   op_ret_cc,     op_ret,        op_jp_c_i16,  TODO,         op_call_c_i16, op_call_i16,  op_adc_a_i8,  op_rst_tgt3,
+   op_ret_cc,      op_pop,        op_jp_c_i16,  op_jp_i16,    op_call_c_i16, op_push,      op_add_a_i8,  op_rst_tgt3,
+   op_ret_cc,      op_ret,        op_jp_c_i16,  TODO,         op_call_c_i16, op_call_i16,  op_adc_a_i8,  op_rst_tgt3,
 
-   op_ret_cc,     op_pop,        op_jp_c_i16,  INVALID,      op_call_c_i16, op_push,      op_sub_a_i8,  op_rst_tgt3,
-   op_ret_cc,     TODO,          op_jp_c_i16,  INVALID,      op_call_c_i16, INVALID,      op_sbc_a_i8,  op_rst_tgt3,
+   op_ret_cc,      op_pop,        op_jp_c_i16,  INVALID,      op_call_c_i16, op_push,      op_sub_a_i8,  op_rst_tgt3,
+   op_ret_cc,      TODO,          op_jp_c_i16,  INVALID,      op_call_c_i16, INVALID,      op_sbc_a_i8,  op_rst_tgt3,
 
-   op_ldh_i8_a,   op_pop,        op_ldh_c_a,   INVALID,      INVALID,       op_push,      op_and_a_i8,  op_rst_tgt3,
-   TODO,          TODO,          op_jp_hl,     INVALID,      INVALID,       INVALID,      op_xor_a_i8,  op_rst_tgt3,
+   op_ldh_i8_a,    op_pop,        op_ldh_c_a,   INVALID,      INVALID,       op_push,      op_and_a_i8,  op_rst_tgt3,
+   op_add_sp_i8,   op_jp_hl,      op_ld_mi16_a, INVALID,      INVALID,       INVALID,      op_xor_a_i8,  op_rst_tgt3,
 
-   op_ldh_a_i8,   op_pop,        op_ldh_a_c,   op_di,        INVALID,       op_push,      op_or_a_i8,   op_rst_tgt3,
-   TODO,          TODO,          TODO,         op_ei,        INVALID,       INVALID,      op_cp_a_i8,   op_rst_tgt3,
+   op_ldh_a_i8,    op_pop,        op_ldh_a_c,   op_di,        INVALID,       op_push,      op_or_a_i8,   op_rst_tgt3,
+   op_ld_hl_sp_i8, op_ld_sp_hl,   op_ld_a_mi16, op_ei,        INVALID,       INVALID,      op_cp_a_i8,   op_rst_tgt3,
 };
 
 /**

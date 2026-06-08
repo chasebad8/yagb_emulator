@@ -257,17 +257,37 @@ void test_op_artithmetic(void)
    TEST_ASSERT_EQUAL_HEX(0x1 , READ_H(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_C(emu.cpu.F));
 
-#if 0 /* add sp, imm8 not implemented yet*/
    /* add sp, imm8 */
    emu.cpu.PC = 0x0;
-   emu.rom.rom[0x0000] = 0x5;
+   emu.cpu.SP = 0x0001;
+   emu.rom.rom[0x0000] = 0xFF; /* -1 */
    cpu_debug_run_opcode(&emu.cpu, OP_ADD_SP_N);
-   TEST_ASSERT_EQUAL_HEX(0x85, emu.cpu.A);
+   TEST_ASSERT_EQUAL_HEX(0x0000, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x0001, emu.cpu.PC);
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
    TEST_ASSERT_EQUAL_HEX(0x0 , READ_N(emu.cpu.F));
-   TEST_ASSERT_EQUAL_HEX(0x0 , READ_H(emu.cpu.F));
-   TEST_ASSERT_EQUAL_HEX(0x0 , READ_C(emu.cpu.F));
-#endif
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_H(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_C(emu.cpu.F));
+
+   /* ld hl, sp+imm8 */
+   emu.cpu.PC = 0x0;
+   emu.cpu.SP = 0xFFF8;
+   emu.cpu.HL = 0x0000;
+   emu.rom.rom[0x0000] = 0x08;
+   cpu_debug_run_opcode(&emu.cpu, OP_LD_HL_SP_N);
+   TEST_ASSERT_EQUAL_HEX(0x0000, emu.cpu.HL);
+   TEST_ASSERT_EQUAL_HEX(0x0001, emu.cpu.PC);
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_Z(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x0 , READ_N(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_H(emu.cpu.F));
+   TEST_ASSERT_EQUAL_HEX(0x1 , READ_C(emu.cpu.F));
+
+   /* ld sp, hl */
+   emu.cpu.HL = 0x1234;
+   emu.cpu.SP = 0x0000;
+   cpu_debug_run_opcode(&emu.cpu, OP_LD_SP_HL);
+   TEST_ASSERT_EQUAL_HEX(0x1234, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(0x1234, emu.cpu.HL);
 
    /* add hl, r16 */
    emu.cpu.HL = 0x0FFF;

@@ -1587,7 +1587,7 @@ static void op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
  *        this array can be a global as it is read only
  *
  */
-const opcode_handler_t opcode_table[OP_MAX] =
+static const opcode_handler_t opcode_table[OP_MAX] =
 {
    op_nop,         op_ld_r16_i16, op_ld_m16_a,  op_inc_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rlca,
    op_ld_mi16_sp,  op_add_hl_r16, op_ld_a_m16,  op_dec_r16,   op_inc_r8,     op_dec_r8,    op_ld_r8_i8,  op_rrca,

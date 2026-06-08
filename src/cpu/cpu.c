@@ -1550,7 +1550,11 @@ static void op_ei(cpu_t *cpu, uint8_t opcode)
 }
 
 /**
- * @brief
+ * @brief disable interrupts by setting IME to 0.
+ *        this will not disable interrupts until
+ *        after the next instruction is executed,
+ *        so if EI is immediately followed by DI,
+ *        interrupts are never enabled
  *
  * @param cpu
  * @param opcode

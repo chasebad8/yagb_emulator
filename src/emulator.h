@@ -52,6 +52,10 @@ typedef struct
    ppu_t       ppu;
    cartridge_t rom;
 
+   /* system tick counter using T-cycles.
+      each memory read is 4 T-cycles */
+   uint32_t sys_tick;
+
 } emulator_t;
 
 void emulator_init(emulator_t *emulator);

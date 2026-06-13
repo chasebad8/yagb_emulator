@@ -1675,6 +1675,8 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
  */
 void cpu_step(cpu_t *cpu)
 {
+   uint8_t t_cycles = 0;
+
    /* fetch, decode, execute baby */
    if(cpu->bus == NULL)
    {
@@ -1684,7 +1686,7 @@ void cpu_step(cpu_t *cpu)
    else
    {
       uint8_t opcode = bus_read(cpu->bus, cpu->PC++);
-      opcode_table[opcode](cpu, opcode);
+      t_cycles = opcode_table[opcode](cpu, opcode);
    }
 }
 

@@ -259,7 +259,7 @@ static inline void write_m16(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
  * @param cpu
  * @param opcode
  */
-static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_unimplemented(cpu_t *cpu, uint8_t opcode)
 {
    LOG_WARN("opcode 0x%0X is not implemented", opcode);
 
@@ -275,7 +275,7 @@ static void op_unimplemented(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_invalid(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_invalid(cpu_t *cpu, uint8_t opcode)
 {
    LOG_ERROR("opcode 0x%0X is not a valid opcode", opcode);
 
@@ -294,9 +294,10 @@ static void op_invalid(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_nop(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_nop(cpu_t *cpu, uint8_t opcode)
 {
    LOG_OPCODE("NOP");
+   return 4;
 }
 
 /**
@@ -306,7 +307,7 @@ static void op_nop(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
 {
    /* grab the next 2 bytes in memory (little endian)*/
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
@@ -318,6 +319,7 @@ static void op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
    write_r16(cpu, dest_reg, value);
 
    LOG_OPCODE("LD %s, 0x%04X", r16_to_string(dest_reg), value);
+   return 12;
 }
 
 /**
@@ -327,13 +329,14 @@ static void op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
 {
    m16_idx_e src_reg = ((opcode >> 4) & 0x3);
 
    write_m16(cpu, src_reg, cpu->A);
 
    LOG_OPCODE("LD [%s], A", r16_to_string((r16_idx_e)src_reg));
+   return 8;
 }
 
 /**
@@ -343,13 +346,14 @@ static void op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
 {
    r16_idx_e src_reg = ((opcode >> 4) & 0x3);
 
    cpu->A = read_m16(cpu, src_reg);
 
    LOG_OPCODE("LD A, [%s]", r16_to_string((r16_idx_e)src_reg));
+   return 8;
 }
 
 /**
@@ -360,7 +364,7 @@ static void op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
 {
    /* read the address from the next 2 immediate bytes (little endian) */
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
@@ -372,6 +376,7 @@ static void op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
    bus_write(cpu->bus, addr+1, (cpu->SP >> 8) & 0xFF);
 
    LOG_OPCODE("LD [0x%04X], SP", addr);
+   return 20;
 }
 
 /**
@@ -382,7 +387,7 @@ static void op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
 {
    /* read the address from the next 2 immediate bytes (little endian) */
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
@@ -392,6 +397,7 @@ static void op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
    bus_write(cpu->bus, addr, cpu->A);
 
    LOG_OPCODE("LD [0x%04X], A", addr);
+   return 16;
 }
 
 /**
@@ -402,7 +408,7 @@ static void op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
 {
    /* read the address from the next 2 immediate bytes (little endian) */
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
@@ -412,6 +418,7 @@ static void op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
    cpu->A = bus_read(cpu->bus, addr);
 
    LOG_OPCODE("LD A, [0x%04X]", addr);
+   return 16;
 }
 
 /**
@@ -420,7 +427,7 @@ static void op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_inc_r16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_inc_r16(cpu_t *cpu, uint8_t opcode)
 {
    r16_idx_e src_reg = (opcode >> 4) & 0x3;
    uint16_t  value   = read_r16(cpu, src_reg);
@@ -428,6 +435,7 @@ static void op_inc_r16(cpu_t *cpu, uint8_t opcode)
    write_r16(cpu, src_reg, ++value);
 
    LOG_OPCODE("INC %s", r16_to_string(src_reg));
+   return 8;
 }
 
 /**
@@ -436,7 +444,7 @@ static void op_inc_r16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_dec_r16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_dec_r16(cpu_t *cpu, uint8_t opcode)
 {
    r16_idx_e src_reg = (opcode >> 4) & 0x3;
    uint16_t  value   = read_r16(cpu, src_reg);
@@ -444,6 +452,7 @@ static void op_dec_r16(cpu_t *cpu, uint8_t opcode)
    write_r16(cpu, src_reg, --value);
 
    LOG_OPCODE("DEC %s", r16_to_string(src_reg));
+   return 8;
 }
 
 /**
@@ -452,7 +461,7 @@ static void op_dec_r16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
 {
    r16_idx_e src_reg  = (opcode >> 4) & 0x3;
    uint16_t  src_val  = read_r16(cpu, src_reg);
@@ -472,6 +481,7 @@ static void op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFFFF));
 
    LOG_OPCODE("ADD HL, %s", r16_to_string(src_reg));
+   return 8;
 }
 
 /**
@@ -480,7 +490,7 @@ static void op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_inc_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_inc_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = ((opcode >> 3) & 0x7);
    uint8_t  val = read_r8(cpu, src_reg);
@@ -492,6 +502,7 @@ static void op_inc_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, ((val & 0x0F) == 0x0));
 
    LOG_OPCODE("INC %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -500,7 +511,7 @@ static void op_inc_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_dec_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_dec_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = ((opcode >> 3) & 0x7);
    uint8_t  val = read_r8(cpu, src_reg);
@@ -512,6 +523,7 @@ static void op_dec_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, ((val & 0x0F) == 0xF));
 
    LOG_OPCODE("DEC %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -521,7 +533,7 @@ static void op_dec_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e dest_reg = ((opcode >> 3) & 0x7);
    uint8_t  value = bus_read(cpu->bus, cpu->PC++);
@@ -529,6 +541,7 @@ static void op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
    write_r8(cpu, dest_reg, value);
 
    LOG_OPCODE("LD %s, 0x%02X", r8_to_string(dest_reg), value);
+   return 8;
 }
 
 /**
@@ -538,7 +551,7 @@ static void op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_rlca(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_rlca(cpu_t *cpu, uint8_t opcode)
 {
    /* save the bit being lost after shifting by 7 bits */
    uint8_t carry_bit = ((cpu->A >> 7) & 0x1);
@@ -552,6 +565,7 @@ static void op_rlca(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, carry_bit);
 
    LOG_OPCODE("RLCA");
+   return 4;
 }
 
 /**
@@ -561,7 +575,7 @@ static void op_rlca(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_rrca(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_rrca(cpu_t *cpu, uint8_t opcode)
 {
    /* save the bit being lost */
    uint8_t carry_bit = (cpu->A & 0x1);
@@ -575,6 +589,7 @@ static void op_rrca(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, carry_bit);
 
    LOG_OPCODE("RRCA");
+   return 4;
 }
 
 /**
@@ -585,7 +600,7 @@ static void op_rrca(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_rla(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_rla(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t carry_bit = ((cpu->A >> 7) & 1);
 
@@ -597,6 +612,7 @@ static void op_rla(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, carry_bit);
 
    LOG_OPCODE("RLA");
+   return 4;
 }
 
 /**
@@ -606,7 +622,7 @@ static void op_rla(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_rra(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_rra(cpu_t *cpu, uint8_t opcode)
 {
    /* save the bit being lost */
    uint8_t carry_bit = (cpu->A & 0x1);
@@ -620,6 +636,7 @@ static void op_rra(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, carry_bit);
 
    LOG_OPCODE("RRA");
+   return 4;
 }
 
 /**
@@ -632,7 +649,7 @@ static void op_rra(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_jr_e8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_jr_e8(cpu_t *cpu, uint8_t opcode)
 {
    int8_t offset = bus_read(cpu->bus, cpu->PC++);
 
@@ -647,6 +664,7 @@ static void op_jr_e8(cpu_t *cpu, uint8_t opcode)
    }
 
    LOG_OPCODE("JR 0x%04X", cpu->PC);
+   return 12;
 }
 
 /**
@@ -659,10 +677,11 @@ static void op_jr_e8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
 {
    int8_t  offset = bus_read(cpu->bus, cpu->PC++);
    uint8_t flag   = (opcode >> 3) & 0x3;
+   uint8_t cycles = 8;
 
    if ((cpu->PC + offset) < 0)
    {
@@ -672,21 +691,26 @@ static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
    else if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
       cpu->PC += offset;
+      cycles = 12;
    }
    else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
       cpu->PC += offset;
+      cycles = 12;
    }
    else if ((flag == 2) && (READ_C(cpu->F) == false))
    {
       cpu->PC += offset;
+      cycles = 12;
    }
    else if ((flag == 3) && (READ_C(cpu->F) == true))
    {
       cpu->PC += offset;
+      cycles = 12;
    }
 
    LOG_OPCODE("JR CC, 0x%04X", cpu->PC);
+   return cycles;
 }
 
 /**
@@ -695,7 +719,7 @@ static void op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_cpl(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_cpl(cpu_t *cpu, uint8_t opcode)
 {
    cpu->A = ~cpu->A;
 
@@ -703,6 +727,7 @@ static void op_cpl(cpu_t *cpu, uint8_t opcode)
    WRITE_H(cpu->F, 1);
 
    LOG_OPCODE("CPL");
+   return 4;
 }
 
 /**
@@ -711,13 +736,14 @@ static void op_cpl(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_scf(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_scf(cpu_t *cpu, uint8_t opcode)
 {
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, 1);
 
    LOG_OPCODE("SCF");
+   return 4;
 }
 
 /**
@@ -726,13 +752,14 @@ static void op_scf(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ccf(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ccf(cpu_t *cpu, uint8_t opcode)
 {
    WRITE_N(cpu->F, 0);
    WRITE_H(cpu->F, 0);
    WRITE_C(cpu->F, !READ_C(cpu->F));
 
    LOG_OPCODE("CCF");
+   return 4;
 }
 
 /**
@@ -741,11 +768,12 @@ static void op_ccf(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_stop(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_stop(cpu_t *cpu, uint8_t opcode)
 {
    LOG_INFO("opcode %0X STOP ... exiting", opcode);
 
    LOG_OPCODE("STOP");
+   return 4;
 }
 
 /**********************************************************
@@ -760,7 +788,7 @@ static void op_stop(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
    r8_idx_e dest_reg = (opcode >> 3) & 0x7;
@@ -768,6 +796,7 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
    write_r8(cpu, dest_reg, read_r8(cpu, src_reg));
 
    LOG_OPCODE("LD %s, %s", r8_to_string(dest_reg), r8_to_string(src_reg));
+   return 4;
 }
 
 /**********************************************************
@@ -782,7 +811,7 @@ static void op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_add_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_add_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
    uint8_t  src_val  = read_r8(cpu, src_reg);
@@ -806,6 +835,7 @@ static void op_add_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFF));
 
    LOG_OPCODE("ADD A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -814,7 +844,7 @@ static void op_add_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
    uint8_t  carry    = (cpu->F >> CARRY_POS) & 0x1;
@@ -834,6 +864,7 @@ static void op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFF));
 
    LOG_OPCODE("ADC A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -842,7 +873,7 @@ static void op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
    uint8_t  src_val  = read_r8(cpu, src_reg);
@@ -861,6 +892,7 @@ static void op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (dest_val < src_val));
 
    LOG_OPCODE("SUB A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -869,7 +901,7 @@ static void op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg  = (opcode & 0x7);
    r8_idx_e dest_reg = REG_A;
@@ -890,6 +922,7 @@ static void op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, ((uint16_t)dest_val < ((uint16_t)src_val + (uint16_t)carry)));
 
    LOG_OPCODE("SBC A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -898,7 +931,7 @@ static void op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_and_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_and_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = opcode & 0x7;
    uint8_t  value = (cpu->A & read_r8(cpu, src_reg));
@@ -911,6 +944,7 @@ static void op_and_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, 0);
 
    LOG_OPCODE("AND A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -919,7 +953,7 @@ static void op_and_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = opcode & 0x7;
    uint8_t  value = (cpu->A ^ read_r8(cpu, src_reg));
@@ -932,6 +966,7 @@ static void op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, 0);
 
    LOG_OPCODE("XOR A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -940,7 +975,7 @@ static void op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_or_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_or_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = opcode & 0x7;
    uint8_t  value = (cpu->A | read_r8(cpu, src_reg));
@@ -953,6 +988,7 @@ static void op_or_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, 0);
 
    LOG_OPCODE("OR A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**
@@ -963,7 +999,7 @@ static void op_or_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e src_reg = opcode & 0x7;
    uint8_t  value = read_r8(cpu, src_reg);
@@ -974,6 +1010,7 @@ static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (cpu->A < value));
 
    LOG_OPCODE("CP A, %s", r8_to_string(src_reg));
+   return 4;
 }
 
 /**********************************************************
@@ -986,7 +1023,7 @@ static void op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_add_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t dest_val = cpu->A;
@@ -1006,6 +1043,7 @@ static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFF));
 
    LOG_OPCODE("ADD A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1014,7 +1052,7 @@ static void op_add_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
 {
    int8_t  imm_val = (int8_t)bus_read(cpu->bus, cpu->PC++);
    uint16_t orig_sp = cpu->SP;
@@ -1029,6 +1067,7 @@ static void op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
    cpu->SP = result;
 
    LOG_OPCODE("ADD SP, 0x%02X", (uint8_t)imm_val);
+   return 16;
 }
 
 /**
@@ -1037,7 +1076,7 @@ static void op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
 {
    int8_t  imm_val = (int8_t)bus_read(cpu->bus, cpu->PC++);
    uint16_t orig_sp = cpu->SP;
@@ -1052,6 +1091,7 @@ static void op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
    cpu->HL = result;
 
    LOG_OPCODE("LD HL, SP+0x%02X", (uint8_t)imm_val);
+   return 12;
 }
 
 /**
@@ -1060,11 +1100,12 @@ static void op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ld_sp_hl(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ld_sp_hl(cpu_t *cpu, uint8_t opcode)
 {
    cpu->SP = cpu->HL;
 
    LOG_OPCODE("LD SP, HL");
+   return 8;
 }
 
 /**
@@ -1074,7 +1115,7 @@ static void op_ld_sp_hl(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t carry    = (cpu->F >> CARRY_POS) & 0x1;
@@ -1094,6 +1135,7 @@ static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (result > 0xFF));
 
    LOG_OPCODE("ADC A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1102,7 +1144,7 @@ static void op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t dest_val = cpu->A;
@@ -1121,6 +1163,7 @@ static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (dest_val < imm_val));
 
    LOG_OPCODE("SUB A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1129,7 +1172,7 @@ static void op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t carry    = (cpu->F >> CARRY_POS) & 0x1;
@@ -1149,6 +1192,7 @@ static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (dest_val < (imm_val + carry)));
 
    LOG_OPCODE("SBC A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1157,7 +1201,7 @@ static void op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_and_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t dest_val = cpu->A;
@@ -1173,6 +1217,7 @@ static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, 0);
 
    LOG_OPCODE("AND A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1181,7 +1226,7 @@ static void op_and_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_or_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t dest_val = cpu->A;
@@ -1197,6 +1242,7 @@ static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, 0);
 
    LOG_OPCODE("OR A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1205,7 +1251,7 @@ static void op_or_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t dest_val = cpu->A;
@@ -1221,6 +1267,7 @@ static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, 0);
 
    LOG_OPCODE("XOR A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1230,7 +1277,7 @@ static void op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t imm_val  = bus_read(cpu->bus, cpu->PC++);
    uint8_t dest_val = cpu->A;
@@ -1247,6 +1294,7 @@ static void op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
    WRITE_C(cpu->F, (dest_val < imm_val));
 
    LOG_OPCODE("CP A, 0x%02X", imm_val);
+   return 8;
 }
 
 /**
@@ -1256,7 +1304,7 @@ static void op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ret(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ret(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
    uint8_t pop_addr_high = bus_read(cpu->bus, cpu->SP++);
@@ -1264,6 +1312,7 @@ static void op_ret(cpu_t *cpu, uint8_t opcode)
    cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
 
    LOG_OPCODE("RET");
+   return 16;
 }
 
 /**
@@ -1273,7 +1322,7 @@ static void op_ret(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ret_cc(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t pop_addr_low  = 0;
    uint8_t pop_addr_high = 0;
@@ -1305,6 +1354,7 @@ static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
    }
 
    LOG_OPCODE("RET CC");
+   return (ret == true) ? 20 : 8;
 }
 
 /**
@@ -1313,31 +1363,37 @@ static void op_ret_cc(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
    uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
    uint16_t addr      = ((high_byte << 8) | low_byte);
    uint8_t  flag      = (opcode >> 3) & 0x3;
+   uint8_t  cycles    = 12;
 
    if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
       cpu->PC = addr;
+      cycles = 16;
    }
    else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
       cpu->PC = addr;
+      cycles = 16;
    }
    else if ((flag == 2) && (READ_C(cpu->F) == false))
    {
       cpu->PC = addr;
+      cycles = 16;
    }
    else if ((flag == 3) && (READ_C(cpu->F) == true))
    {
       cpu->PC = addr;
+      cycles = 16;
    }
 
    LOG_OPCODE("JP CC, 0x%04X", addr);
+   return cycles;
 }
 
 /**
@@ -1346,7 +1402,7 @@ static void op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_jp_i16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_jp_i16(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
    uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
@@ -1355,6 +1411,7 @@ static void op_jp_i16(cpu_t *cpu, uint8_t opcode)
    cpu->PC = addr;
 
    LOG_OPCODE("JP 0x%04X", addr);
+   return 16;
 }
 
 /**
@@ -1363,11 +1420,12 @@ static void op_jp_i16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_jp_hl(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_jp_hl(cpu_t *cpu, uint8_t opcode)
 {
    cpu->PC = cpu->HL;
 
    LOG_OPCODE("JP HL");
+   return 4;
 }
 
 /**
@@ -1376,39 +1434,42 @@ static void op_jp_hl(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_call_c_i16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_call_c_i16(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
    uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
    uint16_t addr = ((high_byte << 8) | low_byte);
    uint8_t  flag = (opcode >> 3) & 0x3;
-   bool     call = false;
+   uint8_t  cycles = 12;
+   bool     ret    = false;
 
    if ((flag == 0) && (READ_Z(cpu->F) == false))
    {
-      call = true;
+      ret = true;
    }
    else if ((flag == 1) && (READ_Z(cpu->F) == true))
    {
-      call = true;
+      ret = true;
    }
    else if ((flag == 2) && (READ_C(cpu->F) == false))
    {
-      call = true;
+      ret = true;
    }
    else if ((flag == 3) && (READ_C(cpu->F) == true))
    {
-      call = true;
+      ret = true;
    }
 
-   if (call == true)
+   if (ret == true)
    {
       bus_write(cpu->bus, --cpu->SP, ((cpu->PC >> 8) & 0xFF));
       bus_write(cpu->bus, --cpu->SP, (cpu->PC & 0xFF));
       cpu->PC = addr;
+      cycles = 24;
    }
 
    LOG_OPCODE("CALL CC, 0x%04X", addr);
+   return cycles;
 }
 
 /**
@@ -1420,7 +1481,7 @@ static void op_call_c_i16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_call_i16(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_call_i16(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t  low_byte  = bus_read(cpu->bus, cpu->PC++);
    uint8_t  high_byte = bus_read(cpu->bus, cpu->PC++);
@@ -1431,6 +1492,7 @@ static void op_call_i16(cpu_t *cpu, uint8_t opcode)
    cpu->PC = addr;
 
    LOG_OPCODE("CALL 0x%04X", addr);
+   return 24;
 }
 
 /**
@@ -1439,7 +1501,7 @@ static void op_call_i16(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_pop(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_pop(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t reg = (opcode >> 4) & 0x3;
    uint8_t pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
@@ -1455,6 +1517,7 @@ static void op_pop(cpu_t *cpu, uint8_t opcode)
    }
 
    LOG_OPCODE("POP %s", r16_to_string((r16_idx_e)reg));
+   return 12;
 }
 
 /**
@@ -1463,7 +1526,7 @@ static void op_pop(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_push(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_push(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t reg = (opcode >> 4) & 0x3;
    uint16_t value = 0;
@@ -1480,6 +1543,7 @@ static void op_push(cpu_t *cpu, uint8_t opcode)
    bus_write(cpu->bus, --cpu->SP, (value & 0xFF));
 
    LOG_OPCODE("PUSH %s", r16_to_string((r16_idx_e)reg));
+   return 16;
 }
 
 /**
@@ -1488,11 +1552,12 @@ static void op_push(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
 {
    bus_write(cpu->bus, 0xFF00 + cpu->C, cpu->A);
 
    LOG_OPCODE("LDH [C], A");
+   return 8;
 }
 
 /**
@@ -1501,12 +1566,13 @@ static void op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t offset = bus_read(cpu->bus, cpu->PC++);
    bus_write(cpu->bus, 0xFF00 + offset, cpu->A);
 
    LOG_OPCODE("LDH [0x%02X], A", offset);
+   return 12;
 }
 
 /**
@@ -1515,11 +1581,12 @@ static void op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
 {
    cpu->A = bus_read(cpu->bus, 0xFF00 + cpu->C);
 
    LOG_OPCODE("LDH A, [C]");
+   return 8;
 }
 
 /**
@@ -1528,12 +1595,13 @@ static void op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t offset = bus_read(cpu->bus, cpu->PC++);
    cpu->A = bus_read(cpu->bus, 0xFF00 + offset);
 
    LOG_OPCODE("LDH A, [0x%02X]", offset);
+   return 12;
 }
 
 /**
@@ -1542,11 +1610,12 @@ static void op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_ei(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_ei(cpu_t *cpu, uint8_t opcode)
 {
    cpu->IME = 1;
 
    LOG_OPCODE("EI");
+   return 4;
 }
 
 /**
@@ -1559,11 +1628,12 @@ static void op_ei(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_di(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_di(cpu_t *cpu, uint8_t opcode)
 {
    cpu->IME = 0;
 
    LOG_OPCODE("DI");
+   return 4;
 }
 
 /**
@@ -1575,7 +1645,7 @@ static void op_di(cpu_t *cpu, uint8_t opcode)
  * @param cpu
  * @param opcode
  */
-static void op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
+static uint8_t op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t rst_addr = ((opcode >> 3) & 0x7) << 3;
 
@@ -1584,6 +1654,7 @@ static void op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
    cpu->PC = rst_addr;
 
    LOG_OPCODE("RST 0x%04X", rst_addr);
+   return 16;
 }
 
 /**

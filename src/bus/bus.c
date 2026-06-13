@@ -95,8 +95,7 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
          case REGION_ROM:
             return cartridge_read(bus_p->rom, addr);
          case REGION_VRAM:
-            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            return ppu_vram_read(bus_p->ppu, addr - 0x8000);
          case REGION_CARTRIDGE_RAM:
             LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             exit(-1);
@@ -106,8 +105,7 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
             LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
             exit(-1);
          case REGION_OAM:
-            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            return ppu_oam_read(bus_p->ppu, addr - 0xFE00);
          case REGION_UNUSABLE:
             LOG_ERROR("illegal read of unusable memory requested: 0x%04X", addr);
             exit(-1);
@@ -145,8 +143,7 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
 #endif
             break;
          case REGION_VRAM:
-            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            ppu_vram_write(bus_p->ppu, addr - 0x8000, value);
             break;
          case REGION_CARTRIDGE_RAM:
             LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
@@ -160,8 +157,7 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
             exit(-1);
             break;
          case REGION_OAM:
-            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            ppu_oam_write(bus_p->ppu, addr - 0xFE00, value);
             break;
          case REGION_UNUSABLE:
             LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);

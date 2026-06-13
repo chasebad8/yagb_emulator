@@ -1714,6 +1714,38 @@ static const opcode_handler_t opcode_table[OP_MAX] =
 };
 
 /**
+ * @brief opcode cb prefix function pointer array
+ *        this array can be a global as it is read only
+ *
+ */
+static const opcode_handler_t opcode_cb_table[OP_MAX] =
+{
+   op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,
+   op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,
+
+   op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,
+   op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,
+
+   op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,
+   op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,
+
+   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,
+   op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+};
+
+/**
  * @brief
  *
  * @param cpu

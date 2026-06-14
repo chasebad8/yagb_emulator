@@ -10,6 +10,7 @@ set(YAGB_SOURCES
 
    src/bus/bus.c
    src/cpu/cpu.c
+   src/cpu/cpu_opcodes.c
    src/ppu/ppu.c
    src/timer/timer.c
    src/input/input.c

@@ -1,6 +1,12 @@
 #ifndef CPU_OPCODES_H
 #define CPU_OPCODES_H
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include "common/logging.h"
+#include "cpu/cpu.h"
+
 typedef enum {
     /* 0x00 - 0x0F */
     OP_NOP           = 0x00,
@@ -286,7 +292,6 @@ typedef enum {
 
 } opcode_t;
 
-#if 0
 /* CB-prefixed opcodes (0xCB00 - 0xCBFF) */
 typedef enum {
     /* 0xCB00 - 0xCB0F */
@@ -415,6 +420,13 @@ typedef enum {
     OP_CB_SET_7_B    = 0xF8, OP_CB_SET_7_C = 0xF9, OP_CB_SET_7_D = 0xFA, OP_CB_SET_7_E = 0xFB,
     OP_CB_SET_7_H    = 0xFC, OP_CB_SET_7_L = 0xFD, OP_CB_SET_7_HL = 0xFE, OP_CB_SET_7_A = 0xFF,
 } cb_opcode_t;
-#endif
+
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ */
+uint8_t cpu_run_opcode(cpu_t* cpu, uint8_t opcode);
 
 #endif // CPU_OPCODES_H

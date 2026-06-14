@@ -1657,6 +1657,223 @@ static uint8_t op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
    return 16;
 }
 
+uint8_t op_cb_rlc_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  carry_bit = ((read_r8(cpu, reg) >> 7) & 0x1);
+
+   /* shift the reg by 1 and or back in carry */
+   write_r8(cpu, reg, ((read_r8(cpu, reg) << 1) | carry_bit));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-RLC %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_rrc_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t carry_bit = (read_r8(cpu, reg) & 0x1);
+
+   write_r8(cpu, reg, ((read_r8(cpu, reg) >> 1) | (carry_bit << 7)));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-RRC %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_rl_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  carry_bit = ((read_r8(cpu, reg) >> 7) & 1);
+
+   write_r8(cpu, reg, ((read_r8(cpu, reg) << 1) | READ_FLD(cpu->F, CARRY_POS)));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-RL %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_rr_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  carry_bit = (read_r8(cpu, reg) & 0x1);
+
+   write_r8(cpu, reg, ((read_r8(cpu, reg) >> 1) | (READ_FLD(cpu->F, CARRY_POS) << 7)));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-RR %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_sla_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  carry_bit = (read_r8(cpu, reg) & 0x1);
+
+   write_r8(cpu, reg, (read_r8(cpu, reg) << 1));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-SLA %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_sra_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  carry_bit = (read_r8(cpu, reg) & 0x01);
+
+   write_r8(cpu, reg, ((read_r8(cpu, reg) & 0x80) | (read_r8(cpu, reg) >> 1)));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-SRA %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_swap_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  value = read_r8(cpu, reg);
+
+   write_r8(cpu, reg, ((value >> 4) | (value << 4)));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, 0);
+
+   LOG_OPCODE("CB-SWAP %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_srl_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  carry_bit = (read_r8(cpu, reg) & 0x01);
+
+   write_r8(cpu, reg, (read_r8(cpu, reg) >> 1));
+
+   WRITE_Z(cpu->F, (read_r8(cpu, reg) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 0);
+   WRITE_C(cpu->F, carry_bit);
+
+   LOG_OPCODE("CB-SRL %s", r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_bit_b3_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  bit_num = (opcode >> 3) & 0x7;
+
+   WRITE_Z(cpu->F, ((read_r8(cpu, reg) & (1 << bit_num)) == 0));
+   WRITE_N(cpu->F, 0);
+   WRITE_H(cpu->F, 1);
+
+   LOG_OPCODE("CB-BIT %d, %s", (opcode >> 3) & 0x7, r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_res_b3_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  bit_num = (opcode >> 3) & 0x7;
+
+   write_r8(cpu, reg, (read_r8(cpu, reg) & ~(1 << bit_num)));
+
+   LOG_OPCODE("CB-RES BIT %d, %s", (opcode >> 3) & 0x7, r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+uint8_t op_cb_set_b3_r8(cpu_t *cpu, uint8_t opcode)
+{
+   r8_idx_e reg = opcode & 0x7;
+   uint8_t  bit_num = (opcode >> 3) & 0x7;
+
+   write_r8(cpu, reg, (read_r8(cpu, reg) | (1 << bit_num)));
+
+   LOG_OPCODE("CB-SET BIT %d, %s", (opcode >> 3) & 0x7, r8_to_string(opcode & 0x7));
+   return 8;
+}
+
+/**
+ * @brief opcode cb prefix function pointer array
+ *        this array can be a global as it is read only
+ *
+ */
+static const opcode_handler_t opcode_cb_table[OP_MAX] =
+{
+   op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,
+   op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,
+
+   op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,
+   op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,
+
+   op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,
+   op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,
+
+   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,
+   op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
+
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+   op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8, op_cb_res_b3_r8,
+
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+};
+
+uint8_t op_cb_prefix(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t cb_opcode = bus_read(cpu->bus, cpu->PC++);
+   return opcode_cb_table[cb_opcode](cpu, cb_opcode);
+}
+
 /**
  * @brief opcode function pointer array
  *        this array can be a global as it is read only
@@ -1701,7 +1918,7 @@ static const opcode_handler_t opcode_table[OP_MAX] =
    op_cp_a_r8,     op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,    op_cp_a_r8,   op_cp_a_r8,   op_cp_a_r8,
 
    op_ret_cc,      op_pop,        op_jp_c_i16,  op_jp_i16,    op_call_c_i16, op_push,      op_add_a_i8,  op_rst_tgt3,
-   op_ret_cc,      op_ret,        op_jp_c_i16,  TODO,         op_call_c_i16, op_call_i16,  op_adc_a_i8,  op_rst_tgt3,
+   op_ret_cc,      op_ret,        op_jp_c_i16,  op_cb_prefix, op_call_c_i16, op_call_i16,  op_adc_a_i8,  op_rst_tgt3,
 
    op_ret_cc,      op_pop,        op_jp_c_i16,  INVALID,      op_call_c_i16, op_push,      op_sub_a_i8,  op_rst_tgt3,
    op_ret_cc,      TODO,          op_jp_c_i16,  INVALID,      op_call_c_i16, INVALID,      op_sbc_a_i8,  op_rst_tgt3,
@@ -1711,38 +1928,6 @@ static const opcode_handler_t opcode_table[OP_MAX] =
 
    op_ldh_a_i8,    op_pop,        op_ldh_a_c,   op_di,        INVALID,       op_push,      op_or_a_i8,   op_rst_tgt3,
    op_ld_hl_sp_i8, op_ld_sp_hl,   op_ld_a_mi16, op_ei,        INVALID,       INVALID,      op_cp_a_i8,   op_rst_tgt3,
-};
-
-/**
- * @brief opcode cb prefix function pointer array
- *        this array can be a global as it is read only
- *
- */
-static const opcode_handler_t opcode_cb_table[OP_MAX] =
-{
-   op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,    op_cb_rlc_r8,
-   op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,    op_cb_rrc_r8,
-
-   op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,     op_cb_rl_r8,
-   op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,     op_cb_rr_r8,
-
-   op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,    op_cb_sla_r8,
-   op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,    op_cb_sra_r8,
-
-   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,   op_cb_swap_r8,
-   op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,    op_cb_srl_r8,
-
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
-   op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8, op_cb_bit_b3_r8,
 };
 
 /**

@@ -239,6 +239,8 @@ static inline void write_m16(cpu_t *cpu, uint8_t reg_idx, uint8_t value)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_unimplemented(cpu_t *cpu, uint8_t opcode)
 {
@@ -255,6 +257,8 @@ static uint8_t op_unimplemented(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_invalid(cpu_t *cpu, uint8_t opcode)
 {
@@ -274,6 +278,8 @@ static uint8_t op_invalid(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_nop(cpu_t *cpu, uint8_t opcode)
 {
@@ -287,6 +293,8 @@ static uint8_t op_nop(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
 {
@@ -309,6 +317,8 @@ static uint8_t op_ld_r16_i16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
 {
@@ -326,6 +336,8 @@ static uint8_t op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
 {
@@ -344,6 +356,8 @@ static uint8_t op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
 {
@@ -367,6 +381,8 @@ static uint8_t op_ld_mi16_sp(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
 {
@@ -388,6 +404,8 @@ static uint8_t op_ld_mi16_a(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
 {
@@ -407,6 +425,8 @@ static uint8_t op_ld_a_mi16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_inc_r16(cpu_t *cpu, uint8_t opcode)
 {
@@ -424,6 +444,8 @@ static uint8_t op_inc_r16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_dec_r16(cpu_t *cpu, uint8_t opcode)
 {
@@ -441,6 +463,8 @@ static uint8_t op_dec_r16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
 {
@@ -470,6 +494,8 @@ static uint8_t op_add_hl_r16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_inc_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -491,6 +517,8 @@ static uint8_t op_inc_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_dec_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -513,6 +541,8 @@ static uint8_t op_dec_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -531,6 +561,8 @@ static uint8_t op_ld_r8_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_rlca(cpu_t *cpu, uint8_t opcode)
 {
@@ -555,6 +587,8 @@ static uint8_t op_rlca(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_rrca(cpu_t *cpu, uint8_t opcode)
 {
@@ -580,6 +614,8 @@ static uint8_t op_rrca(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_rla(cpu_t *cpu, uint8_t opcode)
 {
@@ -602,6 +638,8 @@ static uint8_t op_rla(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_rra(cpu_t *cpu, uint8_t opcode)
 {
@@ -629,6 +667,8 @@ static uint8_t op_rra(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_jr_e8(cpu_t *cpu, uint8_t opcode)
 {
@@ -657,6 +697,8 @@ static uint8_t op_jr_e8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
 {
@@ -699,6 +741,8 @@ static uint8_t op_jr_cc_e8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_cpl(cpu_t *cpu, uint8_t opcode)
 {
@@ -716,6 +760,8 @@ static uint8_t op_cpl(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_scf(cpu_t *cpu, uint8_t opcode)
 {
@@ -732,6 +778,8 @@ static uint8_t op_scf(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ccf(cpu_t *cpu, uint8_t opcode)
 {
@@ -748,6 +796,8 @@ static uint8_t op_ccf(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_stop(cpu_t *cpu, uint8_t opcode)
 {
@@ -768,6 +818,8 @@ static uint8_t op_stop(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -791,6 +843,8 @@ static uint8_t op_ld_r8_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_add_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -824,6 +878,8 @@ static uint8_t op_add_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -853,6 +909,8 @@ static uint8_t op_adc_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -881,6 +939,8 @@ static uint8_t op_sub_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -911,6 +971,8 @@ static uint8_t op_sbc_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_and_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -933,6 +995,8 @@ static uint8_t op_and_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -955,6 +1019,8 @@ static uint8_t op_xor_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_or_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -979,6 +1045,8 @@ static uint8_t op_or_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1003,6 +1071,8 @@ static uint8_t op_cp_a_r8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_add_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1032,6 +1102,8 @@ static uint8_t op_add_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1056,6 +1128,8 @@ static uint8_t op_add_sp_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1080,6 +1154,8 @@ static uint8_t op_ld_hl_sp_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ld_sp_hl(cpu_t *cpu, uint8_t opcode)
 {
@@ -1095,6 +1171,8 @@ static uint8_t op_ld_sp_hl(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1124,6 +1202,8 @@ static uint8_t op_adc_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1152,6 +1232,8 @@ static uint8_t op_sub_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1181,6 +1263,8 @@ static uint8_t op_sbc_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_and_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1206,6 +1290,8 @@ static uint8_t op_and_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_or_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1231,6 +1317,8 @@ static uint8_t op_or_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1257,6 +1345,8 @@ static uint8_t op_xor_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1284,6 +1374,8 @@ static uint8_t op_cp_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ret(cpu_t *cpu, uint8_t opcode)
 {
@@ -1302,6 +1394,8 @@ static uint8_t op_ret(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ret_cc(cpu_t *cpu, uint8_t opcode)
 {
@@ -1343,6 +1437,8 @@ static uint8_t op_ret_cc(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
 {
@@ -1382,6 +1478,8 @@ static uint8_t op_jp_c_i16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_jp_i16(cpu_t *cpu, uint8_t opcode)
 {
@@ -1400,6 +1498,8 @@ static uint8_t op_jp_i16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_jp_hl(cpu_t *cpu, uint8_t opcode)
 {
@@ -1414,6 +1514,8 @@ static uint8_t op_jp_hl(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_call_c_i16(cpu_t *cpu, uint8_t opcode)
 {
@@ -1461,6 +1563,8 @@ static uint8_t op_call_c_i16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_call_i16(cpu_t *cpu, uint8_t opcode)
 {
@@ -1481,6 +1585,8 @@ static uint8_t op_call_i16(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_pop(cpu_t *cpu, uint8_t opcode)
 {
@@ -1506,6 +1612,8 @@ static uint8_t op_pop(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_push(cpu_t *cpu, uint8_t opcode)
 {
@@ -1532,6 +1640,8 @@ static uint8_t op_push(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
 {
@@ -1546,6 +1656,8 @@ static uint8_t op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
 {
@@ -1561,6 +1673,8 @@ static uint8_t op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
 {
@@ -1575,6 +1689,8 @@ static uint8_t op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
 {
@@ -1590,6 +1706,8 @@ static uint8_t op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_ei(cpu_t *cpu, uint8_t opcode)
 {
@@ -1608,6 +1726,8 @@ static uint8_t op_ei(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_di(cpu_t *cpu, uint8_t opcode)
 {
@@ -1625,6 +1745,8 @@ static uint8_t op_di(cpu_t *cpu, uint8_t opcode)
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 static uint8_t op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
 {
@@ -1638,6 +1760,13 @@ static uint8_t op_rst_tgt3(cpu_t *cpu, uint8_t opcode)
    return 16;
 }
 
+/**
+ * @brief rotate left circular
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_rlc_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1671,6 +1800,13 @@ uint8_t op_cb_rrc_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief rotate left
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_rl_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1687,6 +1823,13 @@ uint8_t op_cb_rl_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief rotate right
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_rr_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1703,6 +1846,13 @@ uint8_t op_cb_rr_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief shift left arithmetic
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_sla_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1719,6 +1869,13 @@ uint8_t op_cb_sla_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief shift right arithmetic
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_sra_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1735,6 +1892,13 @@ uint8_t op_cb_sra_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief swap upper and lower nibbles
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_swap_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1751,6 +1915,13 @@ uint8_t op_cb_swap_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief shift right logical
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_srl_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1767,6 +1938,14 @@ uint8_t op_cb_srl_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief test bit
+ *
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_bit_b3_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1780,6 +1959,13 @@ uint8_t op_cb_bit_b3_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief reset bit
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_res_b3_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1791,6 +1977,14 @@ uint8_t op_cb_res_b3_r8(cpu_t *cpu, uint8_t opcode)
    return 8;
 }
 
+/**
+ * @brief
+ *
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_set_b3_r8(cpu_t *cpu, uint8_t opcode)
 {
    r8_idx_e reg = opcode & 0x7;
@@ -1849,6 +2043,14 @@ static const opcode_handler_t opcode_cb_table[OP_MAX] =
    op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
 };
 
+/**
+ * @brief execute cb prefix opcode
+ *
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
 uint8_t op_cb_prefix(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t cb_opcode = bus_read(cpu->bus, cpu->PC++);
@@ -1916,6 +2118,8 @@ static const opcode_handler_t opcode_table[OP_MAX] =
  *
  * @param cpu
  * @param opcode
+ *
+ * @return uint8_t
  */
 uint8_t cpu_run_opcode(cpu_t* cpu, uint8_t opcode)
 {

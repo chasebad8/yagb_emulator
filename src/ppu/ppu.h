@@ -21,10 +21,10 @@
 #define LCD_CTRL_REG 0xFF40
 
 
-enum
-{
+// enum
+// {
 
-} ppu_mode_e;
+// } ppu_mode_e;
 
 typedef struct
 {

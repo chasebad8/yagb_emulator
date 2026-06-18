@@ -6,6 +6,26 @@
 /* 8 KB max */
 #define VRAM_SIZE (0x2000)
 #define OAM_SIZE  (0xA0)
+
+#define LY_REG       0xFF44
+#define LYC_REG      0xFF45
+
+#define LCD_STAT_REG 0xFF41
+#define LCD_STAT_PPU_MODE_MASK  0x03
+#define LCD_STAT_LYC_EQ_LY_MASK 0x04
+#define LCD_STAT_MODE_0_MASK    0x08
+#define LCD_STAT_MODE_1_MASK    0x10
+#define LCD_STAT_MODE_2_MASK    0x20
+#define LCD_STAT_MODE_0_LYC_INT_ENABLE_MASK 0x08
+
+#define LCD_CTRL_REG 0xFF40
+
+
+enum
+{
+
+} ppu_mode_e;
+
 typedef struct
 {
    uint8_t vram[VRAM_SIZE];

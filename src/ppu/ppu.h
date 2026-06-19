@@ -20,14 +20,30 @@
 
 #define LCD_CTRL_REG 0xFF40
 
+enum ppu_state_e
+{
+   STATE_0_HBLANK,
+   STATE_1_VBLANK,
+   STATE_2_OAM_QUERY,
+   STATE_3_PIXEL_TRANSFER,
+
+};
+
 typedef struct
 {
    uint8_t vram[VRAM_SIZE];
    uint8_t oam[OAM_SIZE];
 
+   enum ppu_state_e state;
+
+   uint16_t tick_count;
+   uint32_t frame_count;
+
 } ppu_t;
 
 void ppu_init(ppu_t *ppu_p);
+
+void ppu_tick(ppu_t *ppu_p, uint8_t num_ticks);
 
 void ppu_vram_write(ppu_t *ppu_p, uint16_t addr, uint8_t value);
 uint8_t ppu_vram_read(ppu_t *ppu_p, uint16_t addr);

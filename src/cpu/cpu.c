@@ -50,7 +50,7 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
  *
  * @param cpu
  */
-void cpu_step(cpu_t *cpu)
+uint8_t cpu_step(cpu_t *cpu)
 {
    uint8_t t_cycles = 0;
 
@@ -65,4 +65,6 @@ void cpu_step(cpu_t *cpu)
       uint8_t opcode = bus_read(cpu->bus, cpu->PC++);
       t_cycles = cpu_run_opcode(cpu, opcode);
    }
+
+   return t_cycles;
 }

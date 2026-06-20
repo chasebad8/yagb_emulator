@@ -10,6 +10,7 @@
  */
 
 #include <string.h>
+#include <stdbool.h>
 #include "ppu/ppu.h"
 #include "bus/bus.h"
 #include "common/logging.h"
@@ -29,6 +30,17 @@
 #define PPU_MODE_1_OFFSET (PPU_MODE_0_OFFSET + PPU_MODE_0_CYCLES)
 #define PPU_MODE_2_OFFSET (0)
 #define PPU_MODE_3_OFFSET (PPU_MODE_2_OFFSET + PPU_MODE_2_CYCLES)
+
+#define PPU_SPRITE_Y_OFFSET (16)
+
+typedef struct
+{
+   uint8_t y_pos;
+   uint8_t x_pos;
+   uint8_t tile_index;
+   uint8_t attributes;
+
+} sprite_attr_t;
 
 /*
    The CPU builds and updates VRAM, while the PPU reads VRAM every frame and converts it into pixels on the LCD.
@@ -70,7 +82,7 @@
  */
 static void ppu_mode_0_hblank(ppu_t *ppu)
 {
-
+   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_0_INT_CONTRIB_MASK);
 }
 
 /**
@@ -80,18 +92,65 @@ static void ppu_mode_0_hblank(ppu_t *ppu)
  */
 static void ppu_mode_1_vblank(ppu_t *ppu)
 {
-   /* set vblank interrupt flag */
-   bus_write(ppu->bus, 0xFF0F, bus_read(ppu->bus, 0xFF0F) | 0x01);
+   bus_request_interrupt(ppu->bus, IF_REG_VBLANK_MASK, 0);
+   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_1_INT_CONTRIB_MASK);
 }
 
 /**
- * @brief
+ * @brief read the current scanline and current sprite height.
+ *        then, compare if any pixels of the current sprite will
+ *        be on the current scanline.
+ *
+ * @param ppu
+ * @param sprite_y_pos
+ * @return true
+ * @return false
+ */
+static bool ppu_is_sprite_on_scanline(ppu_t *ppu, uint8_t sprite_y_pos)
+{
+   uint8_t curr_scanline  = bus_read(ppu->bus, LY_REG);
+   bool    sprite_is_tall = (bus_read(ppu->bus, LCDC_REG) & 0x4) >> 3;
+   uint8_t sprite_height  = ((sprite_is_tall == true) ? 16 : 8);
+
+   if ((curr_scanline >= sprite_y_pos) && (curr_scanline < (sprite_y_pos + sprite_height)))
+   {
+      return true;
+   }
+   else
+   {
+      return false;
+   }
+}
+
+/**
+ * @brief loop through OAM to see if any of the 40
+ *        possible sprites are on the current scan
+ *        line. If they are, add to the list.
  *
  * @param ppu
  */
 static void ppu_mode_2_oam_query(ppu_t *ppu)
 {
+   uint8_t sprite_cnt = 0;
 
+   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_2_INT_CONTRIB_MASK);
+
+   for (uint8_t sprite_index = 0; sprite_index < PPU_MAX_SPRITES; sprite_index++)
+   {
+      uint8_t sprite_y_pos = bus_read(ppu->bus, ((sprite_index * 4) + OAM_OFFSET)) - PPU_SPRITE_Y_OFFSET;
+
+      if (ppu_is_sprite_on_scanline(ppu, sprite_y_pos) == true)
+      {
+         ppu->sprite_arr[sprite_cnt] = sprite_index;
+         sprite_cnt++;
+      }
+
+      /* max of 10 sprites per scanline */
+      if (sprite_cnt == 10)
+      {
+         break;
+      }
+   }
 }
 
 /**
@@ -102,6 +161,8 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
 
+   /* this is where I will need to call fifo updating */
+   /* this is also where I will need to pass off to SDL driver */
 }
 
 /**
@@ -115,10 +176,11 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 {
    LOG_DEBUG("initializing ppu ...");
 
-   ppu_p->bus = bus_p;
-   ppu_p->state = STATE_2_OAM_QUERY;
+   ppu_p->bus         = bus_p;
+   ppu_p->state       = STATE_2_OAM_QUERY;
    ppu_p->tick_count  = 0;
    ppu_p->frame_count = 0;
+
    memset(ppu_p->vram, 0, VRAM_SIZE);
    memset(ppu_p->oam,  0, OAM_SIZE);
 
@@ -130,12 +192,11 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
           scanlines before entering mode 1 for 10 scanlines
  *
  * @param ppu
- * @return statc
  */
 static void ppu_update_state_machine(ppu_t *ppu)
 {
    ppu->frame_count += ppu->tick_count / PPU_CYCLES_PER_FRAME;
-   ppu->tick_count  = (ppu->tick_count + 1) % PPU_CYCLES_PER_FRAME;
+   ppu->tick_count  += ppu->tick_count % PPU_CYCLES_PER_FRAME;
 
    if (ppu->tick_count >= PPU_MODE_1_OFFSET)
    {
@@ -144,6 +205,7 @@ static void ppu_update_state_machine(ppu_t *ppu)
    else if (PPU_ELAPSED_CYCLES_PER_SCANLINE(ppu->tick_count) >= PPU_MODE_0_OFFSET)
    {
       ppu->state = STATE_0_HBLANK;
+
    }
    else if (PPU_ELAPSED_CYCLES_PER_SCANLINE(ppu->tick_count) >= PPU_MODE_2_OFFSET)
    {
@@ -153,6 +215,9 @@ static void ppu_update_state_machine(ppu_t *ppu)
    {
       ppu->state = STATE_3_PIXEL_TRANSFER;
    }
+
+   /* update state in STAT reg */
+   bus_write(ppu->bus, STAT_REG, bus_read(ppu->bus, IF_REG) | ppu->state);
 }
 
 /**
@@ -164,7 +229,7 @@ static void ppu_update_state_machine(ppu_t *ppu)
  * @param ppu_p
  * @param num_ticks
  */
-void ppu_tick(ppu_t *ppu, uint8_t num_ticks)
+void ppu_step(ppu_t *ppu, uint8_t num_ticks)
 {
    /* ppu operates 1 tick at a time */
    uint8_t consumed_ticks = num_ticks;

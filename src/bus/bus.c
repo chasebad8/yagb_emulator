@@ -195,3 +195,24 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
       }
    }
 }
+
+/**
+ * @brief set interrupt mask flag in IF reg.
+ *        if lcd interrupt, confirm the contributor
+ *        is set in LCD STAT reg before raising.
+ *
+ */
+void bus_request_interrupt(bus_t          *bus,
+                           if_reg_mask_t   interrupt_mask,
+                           stat_reg_mask_t lcd_interrupt_contrib_mask)
+{
+   if ((interrupt_mask == IF_REG_LCD_MASK) &&
+       ((bus_read(bus, STAT_REG) & lcd_interrupt_contrib_mask) == 0))
+   {
+      return;
+   }
+
+   bus_write(bus, IF_REG, bus_read(bus, IF_REG) | interrupt_mask);
+}
+
+void bus_get_lcd_stat_mask(bus_t *bus);

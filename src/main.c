@@ -15,6 +15,9 @@ int main(int argc, char *argv[])
 {
    emulator_t emulator;
 
+   /* temporary */
+   uint8_t cycle_count = 0;
+
    LOG_INFO("Welcome to Yet Another GameBoy Emulator!");
    LOG_INFO("----------------------------------------");
 
@@ -36,7 +39,10 @@ int main(int argc, char *argv[])
 
       while (1)
       {
-         cpu_step(&emulator.cpu);
+         cycle_count = cpu_step(&emulator.cpu);
+         ppu_step(&emulator.ppu, cycle_count);
+
+         /* cpu_process_interrupts(); */
       }
    }
 

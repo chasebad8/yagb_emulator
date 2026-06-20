@@ -7,18 +7,9 @@
 #define VRAM_SIZE (0x2000)
 #define OAM_SIZE  (0xA0)
 
-#define LY_REG       0xFF44
-#define LYC_REG      0xFF45
+#define OAM_OFFSET 0xFE00
 
-#define LCD_STAT_REG 0xFF41
-#define LCD_STAT_PPU_MODE_MASK  0x03
-#define LCD_STAT_LYC_EQ_LY_MASK 0x04
-#define LCD_STAT_MODE_0_MASK    0x08
-#define LCD_STAT_MODE_1_MASK    0x10
-#define LCD_STAT_MODE_2_MASK    0x20
-#define LCD_STAT_MODE_0_LYC_INT_ENABLE_MASK 0x08
-
-#define LCD_CTRL_REG 0xFF40
+#define PPU_MAX_SPRITES (40)
 
 enum ppu_state_e
 {
@@ -41,6 +32,8 @@ typedef struct
    uint8_t vram[VRAM_SIZE];
    uint8_t oam[OAM_SIZE];
 
+   uint8_t sprite_arr[PPU_MAX_SPRITES];
+
    enum ppu_state_e state;
 
    uint16_t tick_count;
@@ -50,7 +43,7 @@ typedef struct
 
 void ppu_init(ppu_t *ppu_p, bus_t *bus_p);
 
-void ppu_tick(ppu_t *ppu_p, uint8_t num_ticks);
+void ppu_step(ppu_t *ppu_p, uint8_t num_ticks);
 
 void ppu_vram_write(ppu_t *ppu_p, uint16_t addr, uint8_t value);
 uint8_t ppu_vram_read(ppu_t *ppu_p, uint16_t addr);

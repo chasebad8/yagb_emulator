@@ -18,16 +18,18 @@ void emulator_init(emulator_t *emulator)
    else
    {
       /* memory broker */
-      bus_init(&emulator->bus, &emulator->ppu, &emulator->rom);
+      bus_init(&emulator->bus, &emulator->ppu, &emulator->rom, &emulator->io);
 
       /* central processing unit */
       cpu_init(&emulator->cpu, &emulator->bus);
 
       /* pixel processing unit */
-      ppu_init(&emulator->ppu);
+      ppu_init(&emulator->ppu, &emulator->bus);
 
       /* game cartridge handling unit */
       cartridge_init(&emulator->rom);
+
+      io_init(&emulator->io);
 
       LOG_INFO("emulator init success!\n");
    }

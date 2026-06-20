@@ -29,8 +29,15 @@ enum ppu_state_e
 
 };
 
+/* we have to forward declare the bus structure
+   this only works because the var in the ppu_t struct is a pointer
+   and since it is a pointer we know the size of the datatype (32 bits) */
+typedef struct bus_t bus_t;
+
 typedef struct
 {
+   bus_t *bus;
+
    uint8_t vram[VRAM_SIZE];
    uint8_t oam[OAM_SIZE];
 
@@ -41,7 +48,7 @@ typedef struct
 
 } ppu_t;
 
-void ppu_init(ppu_t *ppu_p);
+void ppu_init(ppu_t *ppu_p, bus_t *bus_p);
 
 void ppu_tick(ppu_t *ppu_p, uint8_t num_ticks);
 

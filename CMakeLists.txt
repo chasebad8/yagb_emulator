@@ -13,8 +13,9 @@ set(YAGB_SOURCES
    src/cpu/cpu_opcodes.c
    src/ppu/ppu.c
    src/timer/timer.c
-   src/input/input.c
    src/cartridge/cartridge.c
+   src/input_output/input_output.c
+
 
    src/common/logging.c
 )
@@ -42,6 +43,12 @@ target_link_libraries(yagb PRIVATE
 
 target_compile_options(yagb PRIVATE
    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
+   -g
+   -fsanitize=address
+)
+
+target_link_options(yagb PRIVATE
+   -fsanitize=address
 )
 
 # ********************

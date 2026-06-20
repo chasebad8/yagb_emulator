@@ -47,6 +47,7 @@
 
 typedef struct
 {
+   io_t        io;
    cpu_t       cpu;
    bus_t       bus;
    ppu_t       ppu;

@@ -9,7 +9,9 @@
  * @date 2026-06-18
  */
 
+#include <string.h>
 #include "ppu/ppu.h"
+#include "bus/bus.h"
 #include "common/logging.h"
 
 #define PPU_NUM_SCANLINES         (154)
@@ -78,7 +80,8 @@ static void ppu_mode_0_hblank(ppu_t *ppu)
  */
 static void ppu_mode_1_vblank(ppu_t *ppu)
 {
-
+   /* set vblank interrupt flag */
+   bus_write(ppu->bus, 0xFF0F, bus_read(ppu->bus, 0xFF0F) | 0x01);
 }
 
 /**
@@ -101,9 +104,24 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 
 }
 
-void ppu_init(ppu_t *ppu_p)
+/**
+ * @brief the ppu is both a producer and a consumer
+ *        and therefore we need to include the bus.
+ *
+ * @param ppu_p
+ * @param bus_p
+ */
+void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 {
    LOG_DEBUG("initializing ppu ...");
+
+   ppu_p->bus = bus_p;
+   ppu_p->state = STATE_2_OAM_QUERY;
+   ppu_p->tick_count  = 0;
+   ppu_p->frame_count = 0;
+   memset(ppu_p->vram, 0, VRAM_SIZE);
+   memset(ppu_p->oam,  0, OAM_SIZE);
+
    LOG_DEBUG("ppu init success!");
 }
 

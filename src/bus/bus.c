@@ -38,17 +38,37 @@ typedef enum {
 
 void bus_init(bus_t       *bus_p,
               ppu_t       *ppu_p,
-              cartridge_t *cartridge_p)
+              cartridge_t *cartridge_p,
+              io_t        *io_p)
 {
    LOG_DEBUG("initializing bus ...");
 
-   bus_p->ppu = ppu_p;
-   bus_p->rom = cartridge_p;
+   if(bus_p == NULL)
+   {
+      LOG_ERROR("bus pointer is NULL");
+      exit(-1);
+   }
+   else if (ppu_p == NULL)
+   {
+      LOG_ERROR("ppu pointer is NULL");
+      exit(-1);
+   }
+   else if (cartridge_p == NULL)
+   {
+      LOG_ERROR("cartridge pointer is NULL");
+      exit(-1);
+   }
+   else
+   {
+      bus_p->io  = io_p;
+      bus_p->ppu = ppu_p;
+      bus_p->rom = cartridge_p;
 
-   memset(bus_p->wram, 0, WRAM_SIZE * sizeof(uint8_t));
-   memset(bus_p->hram, 0, HRAM_SIZE * sizeof(uint8_t));
+      memset(bus_p->wram, 0, WRAM_SIZE * sizeof(uint8_t));
+      memset(bus_p->hram, 0, HRAM_SIZE * sizeof(uint8_t));
 
-   LOG_DEBUG("bus init success!");
+      LOG_DEBUG("bus init success!");
+   }
 }
 
 static const char* bus_memory_region_to_string(memory_region_t memory_region)
@@ -110,8 +130,7 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
             LOG_ERROR("illegal read of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
-            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            return io_ram_read(bus_p->io, addr - 0xFF00);
          case REGION_HRAM:
             return bus_p->hram[addr - 0xFF80];
          case REGION_IE:
@@ -163,8 +182,8 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
             LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
-            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            LOG_ERROR("addr 0x%04X, addr - 0xFF00: 0x%04X", addr, addr - 0xFF00);
+            io_ram_write(bus_p->io, addr - 0xFF00, value);
             break;
          case REGION_HRAM:
             bus_p->hram[addr - 0xFF80] = value;

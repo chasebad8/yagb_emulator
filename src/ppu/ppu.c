@@ -269,6 +269,7 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
+   //int colour_palette[4] = { 0x8cad28, 0x6c9421, 0x426b29, 0x214231 };
    uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
@@ -278,7 +279,8 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
       tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
       tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
 
-      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = 0x9bbc0f + rand() % 10000;
+      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+      //colour_palette[rand() % 4];
       //ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
 
       /* we now know the colour for this pixel */
@@ -307,7 +309,7 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 
    for(int pixel = 0; pixel < FRAME_BUFFER_SIZE; pixel++)
    {
-      ppu_p->frame_buffer[pixel] = 	0x0f380f;
+      ppu_p->frame_buffer[pixel] = 	0x00;
    }
 
    LOG_DEBUG("ppu init success!");
@@ -321,7 +323,7 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
  */
 static void ppu_update_state_machine(ppu_t *ppu)
 {
-   ppu->frame_count += ppu->tick_count / PPU_CYCLES_PER_FRAME;
+   ppu->frame_count += bus_read(ppu->bus, LY_REG) == 144;
    ppu->tick_count  = (ppu->tick_count + 1) % PPU_CYCLES_PER_SCANLINE;
 
    if(ppu->tick_count == 0)

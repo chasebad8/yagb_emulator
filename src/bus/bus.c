@@ -219,8 +219,7 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
             bus_p->hram[addr - 0xFF80] = value;
             break;
          case REGION_IE:
-            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            bus_p->hram[0x7F] = value;
             break;
       }
    }

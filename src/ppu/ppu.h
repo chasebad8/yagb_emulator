@@ -44,7 +44,7 @@ typedef struct
 
    uint8_t sprite_arr[PPU_MAX_SPRITES];
 
-   int frame_buffer[FRAME_BUFFER_SIZE];
+   uint8_t frame_buffer[FRAME_BUFFER_SIZE];
 
    enum ppu_state_e state;
 

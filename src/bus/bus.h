@@ -9,7 +9,7 @@
 /* 8 KB wram max */
 #define WRAM_SIZE 0x2000
 /* 127 B hram max */
-#define HRAM_SIZE 0x7F
+#define HRAM_SIZE 0x80
 
 /**
  * @brief interrupt flag masks

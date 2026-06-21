@@ -10,6 +10,31 @@ SDL_Window   *window;
 SDL_Renderer *renderer;
 SDL_Texture  *texture;
 
+static int rgb_frame_buffer[FRAME_BUFFER_SIZE];
+
+static void emulator_2bb_to_rgba(emulator_t *emulator)
+{
+   for (int pixel_index = 0; pixel_index < FRAME_BUFFER_SIZE; pixel_index++)
+   {
+      if (emulator->ppu.frame_buffer[pixel_index] == 0x00)
+      {
+         rgb_frame_buffer[pixel_index] = 0x214231;
+      }
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0x01)
+      {
+         rgb_frame_buffer[pixel_index] = 0x426b29;
+      }
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0x10)
+      {
+         rgb_frame_buffer[pixel_index] = 0x6c9421;
+      }
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0x11)
+      {
+         rgb_frame_buffer[pixel_index] = 0x8cad28;
+      }
+   }
+}
+
 /* an emulator instance will be created for 1 emulator. Technically we can support multiple emulators at once. */
 void emulator_init(emulator_t *emulator)
 {
@@ -39,7 +64,7 @@ void emulator_init(emulator_t *emulator)
       SDL_Init(SDL_INIT_VIDEO);
 
       window = SDL_CreateWindow(
-         "DMG Emulator",
+         "Yet Another GameBoy",
          SDL_WINDOWPOS_CENTERED,
          SDL_WINDOWPOS_CENTERED,
          160 * 4,
@@ -113,13 +138,17 @@ void emulator_run(emulator_t *emulator)
       cycle_count = cpu_step(&emulator->cpu);
       ppu_step(&emulator->ppu, cycle_count);
 
-      /* cpu_process_interrupts(); */
-      SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, W * sizeof(uint32_t));
+      if(bus_read(&emulator->bus, LY_REG) == 144)
+      {
+         emulator_2bb_to_rgba(emulator);
 
-      SDL_RenderClear(renderer);
-      SDL_RenderCopy(renderer, texture, NULL, NULL);
-      SDL_RenderPresent(renderer);
+         /* cpu_process_interrupts(); */
+         SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, W * sizeof(uint32_t));
 
-      SDL_Delay(1);
+         SDL_RenderClear(renderer);
+         SDL_RenderCopy(renderer, texture, NULL, NULL);
+         SDL_RenderPresent(renderer);
+      }
+      //SDL_Delay(1);
    }
 }

@@ -45,6 +45,15 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
    LOG_DEBUG("cpu init success!");
 }
 
+void cpu_process_interrupts(cpu_t *cpu)
+{
+   /* if IE is true, IME is true and the flag is set, jump PC */
+   if (cpu->IME == 1)
+   {
+
+   }
+}
+
 /**
  * @brief
  *

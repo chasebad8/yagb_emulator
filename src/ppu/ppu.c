@@ -16,11 +16,9 @@
 #include "common/logging.h"
 
 #define PPU_NUM_SCANLINES         (154)
-#define PPU_NUM_VISIBLE_SCANLINES (144)
 #define PPU_CYCLES_PER_SCANLINE   (456)
 #define PPU_CYCLES_PER_FRAME      (PPU_CYCLES_PER_SCANLINE * PPU_NUM_VISIBLE_SCANLINES)
 #define PPU_ELAPSED_CYCLES_PER_SCANLINE(cycles) ((cycles) % PPU_CYCLES_PER_SCANLINE)
-#define PPU_NUM_PIXELS_PER_SCANLINE (160)
 
 #define PPU_MODE_0_CYCLES (204)
 #define PPU_MODE_1_CYCLES ((PPU_NUM_SCANLINES - PPU_NUM_VISIBLE_SCANLINES) * PPU_CYCLES_PER_SCANLINE)
@@ -274,14 +272,12 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
 
-   uint8_t  frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE] = { 0 };
-
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
       tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
       tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
 
-      frame_buffer[pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
 
       /* we now know the colour for this pixel */
    }

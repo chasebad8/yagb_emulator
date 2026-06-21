@@ -11,6 +11,9 @@
 
 #define PPU_MAX_SPRITES (40)
 
+#define PPU_NUM_PIXELS_PER_SCANLINE (160)
+#define PPU_NUM_VISIBLE_SCANLINES (144)
+
 enum ppu_state_e
 {
    STATE_0_HBLANK,
@@ -39,6 +42,8 @@ typedef struct
    uint8_t oam[OAM_SIZE];
 
    uint8_t sprite_arr[PPU_MAX_SPRITES];
+
+   int frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * PPU_NUM_VISIBLE_SCANLINES];
 
    enum ppu_state_e state;
 

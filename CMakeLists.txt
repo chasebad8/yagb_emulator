@@ -5,6 +5,8 @@ project(yagb_emulator C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+find_package(SDL2 REQUIRED)
+
 set(YAGB_SOURCES
    src/emulator.c
 
@@ -16,7 +18,6 @@ set(YAGB_SOURCES
    src/cartridge/cartridge.c
    src/input_output/input_output.c
 
-
    src/common/logging.c
 )
 
@@ -27,7 +28,8 @@ add_library(yagb_core_test STATIC ${YAGB_SOURCES})
 #   Main Executable
 # ********************
 target_include_directories(yagb_core PUBLIC
-   src)
+   src
+)
 
 #yagb static library definitions
 target_compile_definitions(yagb_core PRIVATE
@@ -40,7 +42,9 @@ target_compile_definitions(yagb_core PRIVATE
 add_executable(yagb src/main.c)
 
 target_link_libraries(yagb PRIVATE
-   yagb_core)
+   yagb_core
+   SDL2::SDL2
+)
 
 target_compile_options(yagb PRIVATE
    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
@@ -73,6 +77,9 @@ add_executable(test_opcodes
     external/Unity/src/unity.c
 )
 
-target_link_libraries(test_opcodes PRIVATE yagb_core_test)
+target_link_libraries(test_opcodes PRIVATE
+   yagb_core_test
+   SDL2::SDL2
+)
 
 add_test(NAME opcode_tests COMMAND test_opcodes)

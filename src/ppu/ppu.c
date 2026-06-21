@@ -20,6 +20,7 @@
 #define PPU_CYCLES_PER_SCANLINE   (456)
 #define PPU_CYCLES_PER_FRAME      (PPU_CYCLES_PER_SCANLINE * PPU_NUM_VISIBLE_SCANLINES)
 #define PPU_ELAPSED_CYCLES_PER_SCANLINE(cycles) ((cycles) % PPU_CYCLES_PER_SCANLINE)
+#define PPU_NUM_PIXELS_PER_SCANLINE (160)
 
 #define PPU_MODE_0_CYCLES (204)
 #define PPU_MODE_1_CYCLES ((PPU_NUM_SCANLINES - PPU_NUM_VISIBLE_SCANLINES) * PPU_CYCLES_PER_SCANLINE)
@@ -75,15 +76,93 @@ typedef struct
 
 */
 
-static void ppu_get_tile(ppu_t             *ppu,
-                         uint8_t            tile_index,
-                         enum tile_source_e tile_source)
+/**
+ * @brief
+ *
+ * @param ppu
+ * @param tile_addr
+ * @param pixel_index
+ * @return uint8_t
+ */
+static uint8_t ppu_get_tile_pixel_color_id(ppu_t *ppu, uint16_t tile_addr, uint8_t pixel_index)
 {
-   /* check the type */
-   if(tile_source == TILE_SOURCE_SPRITE)
-   {
+   uint8_t tile_byte_low  = bus_read(ppu->bus, tile_addr);
+   uint8_t tile_byte_high = bus_read(ppu->bus, tile_addr + 1);
 
+   uint8_t curr_pixel_low_bit  = (tile_byte_low  >> (7 - (pixel_index % 8))) & 0x1;
+   uint8_t curr_pixel_high_bit = (tile_byte_high >> (7 - (pixel_index % 8))) & 0x1;
+
+   return (curr_pixel_high_bit << 1) | curr_pixel_low_bit;
+}
+
+/* tile map = the 32x32 tile map where the value is an index into the tile data
+   tile data = the actual tile data, 16 bytes, contains pixel information */
+
+static uint8_t ppu_get_tile_index(ppu_t *ppu,
+                                  uint8_t x_coord,
+                                  uint8_t y_coord,
+                                  enum tile_source_e tile_source)
+{
+   bool     tile_map_mode        = (bus_read(ppu->bus, LCDC_REG) & 0x8) >> 3;
+   uint16_t tile_map_addr_offset = (tile_map_mode == true) ? 0x9C00 : 0x9800;
+
+   uint8_t y_coord_w_offset = 0;
+   uint8_t x_coord_w_offset = 0;
+
+   if (tile_source == TILE_SOURCE_WINDOW)
+   {
+      /* TODO */;
    }
+   else if (tile_source == TILE_SOURCE_BG)
+   {
+      y_coord_w_offset = y_coord + bus_read(ppu->bus, SCY_REG);
+      x_coord_w_offset = x_coord + bus_read(ppu->bus, SCX_REG);
+   }
+
+   /* divide by 8 and multiply by 32 because each tile
+      is 8x8 pixels and the tile map is 32 tiles wide */
+   uint8_t y_coord_w_offset_relative = ((y_coord_w_offset / 8) * 32);
+   uint8_t x_coord_w_offset_relative =  (x_coord_w_offset / 8);
+
+   return bus_read(ppu->bus, tile_map_addr_offset + y_coord_w_offset_relative + x_coord_w_offset_relative);
+}
+
+/**
+ * @brief $8000-$97FF tile data.
+ *        LCDC bit 4 determines the tile
+ *        data addressing mode:
+ *
+ * @param ppu
+ * @param tile_index
+ * @param tile_source
+ */
+static uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
+                                       uint8_t            tile_index,
+                                       enum tile_source_e tile_source)
+{
+   uint8_t tile_data_mode = (bus_read(ppu->bus, LCDC_REG) & 0x10) >> 4;
+
+   uint16_t tile_addr = 0;
+
+   switch(tile_source)
+   {
+       case TILE_SOURCE_SPRITE:
+          tile_addr = 0x8000 + tile_index * 16;
+          break;
+
+       case TILE_SOURCE_BG:
+       case TILE_SOURCE_WINDOW:
+          if(tile_data_mode == 0)
+          {
+             tile_addr = 0x9000 + ((int8_t)tile_index) * 16;
+          }
+          else
+          {
+             tile_addr = 0x8000 + tile_index * 16;
+          }
+          break;
+   }
+   return tile_addr;
 }
 
 /**
@@ -99,11 +178,11 @@ static sprite_attr_t ppu_get_sprite_attr(ppu_t *ppu, uint8_t sprite_index)
    sprite_attr_t sprite_attr = { 0 };
 
    sprite_attr.y_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
-   sprite_attr.y_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
+   sprite_attr.x_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
    sprite_attr.tile_index = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
-   sprite_attr.attributes = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
+   sprite_attr.attributes = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index));
 
-   return sprite_attr
+   return sprite_attr;
 }
 
 /**
@@ -168,7 +247,7 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
 
    for (uint8_t sprite_index = 0; sprite_index < PPU_MAX_SPRITES; sprite_index++)
    {
-      uint8_t sprite_y_pos = ppu_get_sprite_attr(ppu).y_pos - PPU_SPRITE_Y_OFFSET;
+      uint8_t sprite_y_pos = ppu_get_sprite_attr(ppu, sprite_index).y_pos - PPU_SPRITE_Y_OFFSET;
 
       if (ppu_is_sprite_on_scanline(ppu, sprite_y_pos) == true)
       {
@@ -191,15 +270,21 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-   /* this is where I will need to call fifo updating */
-   /* this is also where I will need to pass off to SDL driver */
+   uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
+   uint8_t  tile_index    = 0;
+   uint16_t tile_addr     = 0;
 
-   /* for x pixels in row
-         fetch background
-         fetch window
+   uint8_t  frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE] = { 0 };
 
-         place sprites (already fetched)
-   */
+   for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
+   {
+      tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
+      tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
+
+      frame_buffer[pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+
+      /* we now know the colour for this pixel */
+   }
 }
 
 /**

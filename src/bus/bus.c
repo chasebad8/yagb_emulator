@@ -182,7 +182,6 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
             LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
-            LOG_ERROR("addr 0x%04X, addr - 0xFF00: 0x%04X", addr, addr - 0xFF00);
             io_ram_write(bus_p->io, addr - 0xFF00, value);
             break;
          case REGION_HRAM:

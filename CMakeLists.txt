@@ -34,6 +34,7 @@ target_compile_definitions(yagb_core PRIVATE
    LOG_LEVEL=0
    LOG_OPCODES
    EXIT_ON_BAD_OPCODE
+   LOGFILE
 )
 
 add_executable(yagb src/main.c)

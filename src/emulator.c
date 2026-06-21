@@ -36,7 +36,6 @@ void emulator_init(emulator_t *emulator)
 
       io_init(&emulator->io);
 
-#if 1
       SDL_Init(SDL_INIT_VIDEO);
 
       window = SDL_CreateWindow(
@@ -62,27 +61,14 @@ void emulator_init(emulator_t *emulator)
 #define W 160
 #define H 144
 
-      uint32_t framebuffer[W * H];
-
-      // clear screen (black)
-      for (int i = 0; i < W * H; i++)
-         framebuffer[i] = 0x0f380f;
-
-      // draw ONE white pixel (dot)
-      framebuffer[10 + 10 * W] = 0x306230;
-      framebuffer[20 + 20 * W] = 0x8bac0f;
-      framebuffer[30 + 30 * W] = 0x9bbc0f;
-
-      SDL_UpdateTexture(texture, NULL, framebuffer, W * sizeof(uint32_t));
+      /* cpu_process_interrupts(); */
+      SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, W * sizeof(uint32_t));
 
       SDL_RenderClear(renderer);
       SDL_RenderCopy(renderer, texture, NULL, NULL);
       SDL_RenderPresent(renderer);
 
-      SDL_Delay(100);
-#endif
-
-      LOG_INFO("emulator init success!\n");
+      SDL_Delay(1000);
    }
 }
 
@@ -127,14 +113,12 @@ void emulator_run(emulator_t *emulator)
       cycle_count = cpu_step(&emulator->cpu);
       ppu_step(&emulator->ppu, cycle_count);
 
-#if 1
       /* cpu_process_interrupts(); */
       SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, W * sizeof(uint32_t));
 
       SDL_RenderClear(renderer);
       SDL_RenderCopy(renderer, texture, NULL, NULL);
       SDL_RenderPresent(renderer);
-#endif
 
       SDL_Delay(1);
    }

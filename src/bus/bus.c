@@ -113,6 +113,7 @@ static const char* bus_memory_region_to_string(memory_region_t memory_region)
       case REGION_UNUSABLE:        return "REGION_UNUSABLE";
       case REGION_IO:              return "REGION_IO";
       case REGION_HRAM:            return "REGION_HRAM";
+      case REGION_IE:              return "REGION_INTERRUPT_ENABLE";
    }
 }
 

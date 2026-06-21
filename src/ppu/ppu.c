@@ -11,6 +11,7 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "ppu/ppu.h"
 #include "bus/bus.h"
 #include "common/logging.h"
@@ -277,8 +278,8 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
       tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
       tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
 
-      LOG_DEBUG("REDERING!!");
-      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = 0x9bbc0f + rand() % 10000;
+      //ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
 
       /* we now know the colour for this pixel */
    }
@@ -304,6 +305,11 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    memset(ppu_p->oam,  0, OAM_SIZE);
    memset(ppu_p->frame_buffer, 0, FRAME_BUFFER_SIZE);
 
+   for(int pixel = 0; pixel < FRAME_BUFFER_SIZE; pixel++)
+   {
+      ppu_p->frame_buffer[pixel] = 	0x0f380f;
+   }
+
    LOG_DEBUG("ppu init success!");
 }
 
@@ -316,11 +322,21 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 static void ppu_update_state_machine(ppu_t *ppu)
 {
    ppu->frame_count += ppu->tick_count / PPU_CYCLES_PER_FRAME;
-   ppu->tick_count  = (ppu->tick_count + 1) % PPU_CYCLES_PER_FRAME;
+   ppu->tick_count  = (ppu->tick_count + 1) % PPU_CYCLES_PER_SCANLINE;
 
-   LOG_DEBUG("ppu->tick_count %d ", ppu->tick_count);
+   if(ppu->tick_count == 0)
+   {
+      bus_write(ppu->bus, LY_REG, (bus_read(ppu->bus, LY_REG) + 1) % PPU_NUM_SCANLINES);
+   }
 
-   if (ppu->tick_count >= PPU_MODE_1_OFFSET)
+      /* TODO NEEDS WORK! THE STATE MACHINE SUCKS!!! */
+   LOG_DEBUG("ppu->tick_count %d, frame count %d, mode %d offset %d, LY %d", ppu->tick_count,
+                                                                             ppu->frame_count,
+                                                                             bus_read(ppu->bus, STAT_REG) & 0x3,
+                                                                             PPU_MODE_1_OFFSET,
+                                                                             bus_read(ppu->bus, LY_REG));
+
+   if (bus_read(ppu->bus, LY_REG) >= PPU_NUM_VISIBLE_SCANLINES)
    {
       ppu->state = STATE_1_VBLANK;
    }

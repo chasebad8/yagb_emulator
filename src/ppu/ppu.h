@@ -17,8 +17,23 @@ enum ppu_state_e
    STATE_1_VBLANK,
    STATE_2_OAM_QUERY,
    STATE_3_PIXEL_TRANSFER,
-
 };
+
+enum tile_source_e
+{
+    TILE_SOURCE_BG,
+    TILE_SOURCE_WINDOW,
+    TILE_SOURCE_SPRITE
+};
+
+typedef struct
+{
+   uint8_t y_pos;
+   uint8_t x_pos;
+   uint8_t tile_index;
+   uint8_t attributes;
+
+} sprite_attr_t;
 
 /* we have to forward declare the bus structure
    this only works because the var in the ppu_t struct is a pointer

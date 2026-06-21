@@ -75,25 +75,35 @@ typedef struct
 
 */
 
-/**
- * @brief
- *
- * @param ppu
- */
-static void ppu_mode_0_hblank(ppu_t *ppu)
+static void ppu_get_tile(ppu_t             *ppu,
+                         uint8_t            tile_index,
+                         enum tile_source_e tile_source)
 {
-   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_0_INT_CONTRIB_MASK);
+   /* check the type */
+   if(tile_source == TILE_SOURCE_SPRITE)
+   {
+
+   }
 }
 
 /**
- * @brief
+ * @brief based on the sprite index, return
+ *        a struct of attr from OAM ram
  *
  * @param ppu
+ * @param sprite_index
+ * @return sprite_attr_t
  */
-static void ppu_mode_1_vblank(ppu_t *ppu)
+static sprite_attr_t ppu_get_sprite_attr(ppu_t *ppu, uint8_t sprite_index)
 {
-   bus_request_interrupt(ppu->bus, IF_REG_VBLANK_MASK, 0);
-   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_1_INT_CONTRIB_MASK);
+   sprite_attr_t sprite_attr = { 0 };
+
+   sprite_attr.y_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
+   sprite_attr.y_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
+   sprite_attr.tile_index = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
+   sprite_attr.attributes = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
+
+   return sprite_attr
 }
 
 /**
@@ -123,6 +133,27 @@ static bool ppu_is_sprite_on_scanline(ppu_t *ppu, uint8_t sprite_y_pos)
 }
 
 /**
+ * @brief
+ *
+ * @param ppu
+ */
+static void ppu_mode_0_hblank(ppu_t *ppu)
+{
+   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_0_INT_CONTRIB_MASK);
+}
+
+/**
+ * @brief
+ *
+ * @param ppu
+ */
+static void ppu_mode_1_vblank(ppu_t *ppu)
+{
+   bus_request_interrupt(ppu->bus, IF_REG_VBLANK_MASK, 0);
+   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_1_INT_CONTRIB_MASK);
+}
+
+/**
  * @brief loop through OAM to see if any of the 40
  *        possible sprites are on the current scan
  *        line. If they are, add to the list.
@@ -137,7 +168,7 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
 
    for (uint8_t sprite_index = 0; sprite_index < PPU_MAX_SPRITES; sprite_index++)
    {
-      uint8_t sprite_y_pos = bus_read(ppu->bus, ((sprite_index * 4) + OAM_OFFSET)) - PPU_SPRITE_Y_OFFSET;
+      uint8_t sprite_y_pos = ppu_get_sprite_attr(ppu).y_pos - PPU_SPRITE_Y_OFFSET;
 
       if (ppu_is_sprite_on_scanline(ppu, sprite_y_pos) == true)
       {
@@ -160,9 +191,15 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-
    /* this is where I will need to call fifo updating */
    /* this is also where I will need to pass off to SDL driver */
+
+   /* for x pixels in row
+         fetch background
+         fetch window
+
+         place sprites (already fetched)
+   */
 }
 
 /**

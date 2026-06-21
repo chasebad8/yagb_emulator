@@ -175,10 +175,10 @@ static sprite_attr_t ppu_get_sprite_attr(ppu_t *ppu, uint8_t sprite_index)
 {
    sprite_attr_t sprite_attr = { 0 };
 
-   sprite_attr.y_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
-   sprite_attr.x_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
-   sprite_attr.tile_index = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index++));
-   sprite_attr.attributes = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index));
+   sprite_attr.y_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index));
+   sprite_attr.x_pos      = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index) + 1);
+   sprite_attr.tile_index = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index) + 2);
+   sprite_attr.attributes = bus_read(ppu->bus, OAM_OFFSET + (4 * sprite_index) + 3);
 
    return sprite_attr;
 }
@@ -277,6 +277,7 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
       tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
       tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
 
+      LOG_DEBUG("REDERING!!");
       ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
 
       /* we now know the colour for this pixel */
@@ -301,6 +302,7 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 
    memset(ppu_p->vram, 0, VRAM_SIZE);
    memset(ppu_p->oam,  0, OAM_SIZE);
+   memset(ppu_p->frame_buffer, 0, FRAME_BUFFER_SIZE);
 
    LOG_DEBUG("ppu init success!");
 }
@@ -314,24 +316,30 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 static void ppu_update_state_machine(ppu_t *ppu)
 {
    ppu->frame_count += ppu->tick_count / PPU_CYCLES_PER_FRAME;
-   ppu->tick_count  += ppu->tick_count % PPU_CYCLES_PER_FRAME;
+   ppu->tick_count  = (ppu->tick_count + 1) % PPU_CYCLES_PER_FRAME;
+
+   LOG_DEBUG("ppu->tick_count %d ", ppu->tick_count);
 
    if (ppu->tick_count >= PPU_MODE_1_OFFSET)
    {
       ppu->state = STATE_1_VBLANK;
    }
-   else if (PPU_ELAPSED_CYCLES_PER_SCANLINE(ppu->tick_count) >= PPU_MODE_0_OFFSET)
+   else
    {
-      ppu->state = STATE_0_HBLANK;
+      uint32_t elapsed = PPU_ELAPSED_CYCLES_PER_SCANLINE(ppu->tick_count);
 
-   }
-   else if (PPU_ELAPSED_CYCLES_PER_SCANLINE(ppu->tick_count) >= PPU_MODE_2_OFFSET)
-   {
-      ppu->state = STATE_2_OAM_QUERY;
-   }
-   else if (PPU_ELAPSED_CYCLES_PER_SCANLINE(ppu->tick_count) >= PPU_MODE_3_OFFSET)
-   {
-      ppu->state = STATE_3_PIXEL_TRANSFER;
+      if (elapsed >= PPU_MODE_0_OFFSET)
+      {
+         ppu->state = STATE_0_HBLANK;
+      }
+      else if (elapsed >= PPU_MODE_3_OFFSET)
+      {
+         ppu->state = STATE_3_PIXEL_TRANSFER;
+      }
+      else
+      {
+         ppu->state = STATE_2_OAM_QUERY;
+      }
    }
 
    /* update state in STAT reg */
@@ -349,12 +357,26 @@ static void ppu_update_state_machine(ppu_t *ppu)
  */
 void ppu_step(ppu_t *ppu, uint8_t num_ticks)
 {
+   LOG_DEBUG("stepping ppu %d ticks", num_ticks);
+
    /* ppu operates 1 tick at a time */
    uint8_t consumed_ticks = num_ticks;
 
+   uint8_t prev_state = 0;
+   uint8_t new_state = 0;
+
    while(consumed_ticks--)
    {
+      prev_state = bus_read(ppu->bus, STAT_REG);
+
       ppu_update_state_machine(ppu);
+
+      new_state = bus_read(ppu->bus, STAT_REG);
+
+      if(prev_state != new_state)
+      {
+         LOG_DEBUG("ppu state updated: %d", new_state);
+      }
 
       switch(ppu->state)
       {
@@ -375,6 +397,8 @@ void ppu_step(ppu_t *ppu, uint8_t num_ticks)
             break;
       }
    }
+
+   LOG_INFO("done stepping ppu %d ticks", num_ticks);
 }
 
 /**

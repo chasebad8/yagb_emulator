@@ -1,7 +1,36 @@
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "bus/bus.h"
 #include "common/logging.h"
+
+#include <execinfo.h>
+
+#define MAX_FRAMES 20
+
+void print_backtrace(void) {
+    void *buffer[MAX_FRAMES];
+
+    // 1. Get the raw return addresses for the current call stack
+    int num_frames = backtrace(buffer, MAX_FRAMES);
+
+    // 2. Translate addresses into an array of human-readable strings
+    char **symbols = backtrace_symbols(buffer, num_frames);
+
+    if (symbols == NULL) {
+        perror("Failed to parse backtrace symbols");
+        return;
+    }
+
+    // 3. Print out each frame in the stack trace
+    printf("\n--- Stack Backtrace (Total %d frames) ---\n", num_frames);
+    for (int i = 0; i < num_frames; i++) {
+        printf("[%d] %s\n", i, symbols[i]);
+    }
+
+    // 4. Free the allocated string array
+    free(symbols);
+}
 
 /* --------------------------------------------------------------------------------------------------
 from https://gbdev.io/pandocs/Memory_Map.html
@@ -128,6 +157,7 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
             return ppu_oam_read(bus_p->ppu, addr - 0xFE00);
          case REGION_UNUSABLE:
             LOG_ERROR("illegal read of unusable memory requested: 0x%04X", addr);
+            print_backtrace();
             exit(-1);
          case REGION_IO:
             return io_ram_read(bus_p->io, addr - 0xFF00);

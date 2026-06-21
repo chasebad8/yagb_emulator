@@ -39,6 +39,12 @@ target_compile_definitions(yagb_core PRIVATE
    LOGFILE
 )
 
+target_compile_options(yagb_core PRIVATE
+   -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
+   -g
+   -fsanitize=address
+)
+
 add_executable(yagb src/main.c)
 
 target_link_libraries(yagb PRIVATE

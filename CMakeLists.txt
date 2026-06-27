@@ -78,14 +78,16 @@ target_compile_definitions(yagb_core_test PRIVATE
    DEBUG_MODE
 )
 
-add_executable(test_opcodes
+add_executable(test_all
+    test/run_tests.c
     test/test_opcodes.c
+    test/test_ppu.c
     external/Unity/src/unity.c
 )
 
-target_link_libraries(test_opcodes PRIVATE
+target_link_libraries(test_all PRIVATE
    yagb_core_test
    SDL2::SDL2
 )
 
-add_test(NAME opcode_tests COMMAND test_opcodes)
+add_test(NAME all_tests COMMAND test_all)

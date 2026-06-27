@@ -34,16 +34,6 @@
 #define READ_C(reg) (READ_FLD((reg), CARRY_POS))
 #define WRITE_C(reg, val) WRITE_FLD((reg), (val), CARRY_POS)
 
-void setUp(void)
-{
-   ;
-}
-
-void tearDown(void)
-{
-   ;
-}
-
 void test_op_ld(void)
 {
    emulator_t emu = {0};
@@ -679,7 +669,7 @@ void test_op_bit_shifting(void)
    emulator_unload_game_cartridge(&emu);
 }
 
-int main(void)
+int run_cpu_tests(void)
 {
    UNITY_BEGIN();
 
@@ -690,6 +680,8 @@ int main(void)
    RUN_TEST(test_op_artithmetic);
    RUN_TEST(test_op_pc_misc);
    RUN_TEST(test_op_bit_shifting);
+
+   TEST_MESSAGE("done.");
 
    return UNITY_END();
 }

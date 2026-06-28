@@ -12,6 +12,9 @@ SDL_Texture  *texture;
 
 static int rgb_frame_buffer[FRAME_BUFFER_SIZE];
 
+#define W 160
+#define H 144
+
 static void emulator_2bb_to_rgba(emulator_t *emulator)
 {
    for (int pixel_index = 0; pixel_index < FRAME_BUFFER_SIZE; pixel_index++)
@@ -61,6 +64,7 @@ void emulator_init(emulator_t *emulator)
 
       io_init(&emulator->io);
 
+#ifndef DEBUG_MODE
       SDL_Init(SDL_INIT_VIDEO);
 
       window = SDL_CreateWindow(
@@ -83,9 +87,6 @@ void emulator_init(emulator_t *emulator)
          160,
          144);
 
-#define W 160
-#define H 144
-
       /* cpu_process_interrupts(); */
       SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, W * sizeof(uint32_t));
 
@@ -93,7 +94,8 @@ void emulator_init(emulator_t *emulator)
       SDL_RenderCopy(renderer, texture, NULL, NULL);
       SDL_RenderPresent(renderer);
 
-      SDL_Delay(1000);
+      //SDL_Delay(1000);
+#endif
    }
 }
 
@@ -133,6 +135,16 @@ void emulator_run(emulator_t *emulator)
    /* temporary */
    uint8_t cycle_count = 0;
 
+   static uint8_t wait = 0;
+
+   emulator_2bb_to_rgba(emulator);
+
+   SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, W * sizeof(uint32_t));
+
+   SDL_RenderClear(renderer);
+   SDL_RenderCopy(renderer, texture, NULL, NULL);
+   SDL_RenderPresent(renderer);
+
    while (1)
    {
       cycle_count = cpu_step(&emulator->cpu);
@@ -142,13 +154,23 @@ void emulator_run(emulator_t *emulator)
       {
          emulator_2bb_to_rgba(emulator);
 
+#ifndef DEBUG_MODE
          /* cpu_process_interrupts(); */
          SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, W * sizeof(uint32_t));
 
          SDL_RenderClear(renderer);
          SDL_RenderCopy(renderer, texture, NULL, NULL);
          SDL_RenderPresent(renderer);
+#endif
+         if(wait == 0)
+         {
+            SDL_Delay(50);
+            wait = 1;
+         }
       }
-      //SDL_Delay(1);
+      else
+      {
+         wait = 0;
+      }
    }
 }

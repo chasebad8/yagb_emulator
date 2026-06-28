@@ -225,6 +225,34 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
    }
 }
 
+void bus_write_stat_reg(bus_t           *bus,
+                        stat_reg_mask_t  mask,
+                        uint8_t          value)
+{
+   uint8_t stat_reg = bus_read(bus, STAT_REG);
+
+   stat_reg &= ~mask;
+   stat_reg |= value & mask;
+
+   bus_write(bus, STAT_REG, stat_reg);
+}
+
+uint8_t bus_read_stat_reg(bus_t           *bus,
+                          stat_reg_mask_t  mask)
+{
+   uint8_t stat_reg = bus_read(bus, STAT_REG);
+
+   switch(mask)
+   {
+      case STAT_REG_PPU_MODE_MASK:           return (stat_reg & mask);
+      case STAT_REG_LYC_EQ_LY_MASK:          return (stat_reg & mask >> 2);
+      case STAT_REG_MODE_0_INT_CONTRIB_MASK: return (stat_reg & mask >> 3);
+      case STAT_REG_MODE_1_INT_CONTRIB_MASK: return (stat_reg & mask >> 4);
+      case STAT_REG_MODE_2_INT_CONTRIB_MASK: return (stat_reg & mask >> 5);
+      case STAT_REG_LYC_INT_CONTRIB_MASK:    return (stat_reg & mask >> 6);
+   }
+}
+
 /**
  * @brief set interrupt mask flag in IF reg.
  *        if lcd interrupt, confirm the contributor

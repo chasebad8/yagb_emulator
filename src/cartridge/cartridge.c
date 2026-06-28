@@ -42,7 +42,9 @@ void cartridge_load(cartridge_t *cartridge_p, const char* cartridge_path)
    {
       /* go to the end of the file to get the size */
       fseek(fptr, 0, SEEK_END);
-      cartridge_p->rom_size = ftell(fptr);
+      //cartridge_p->rom_size = ftell(fptr);
+      cartridge_p->rom_size = MAX_ROM_SIZE;
+
 
       //if ((cartridge_p->rom_size <= 0) || (cartridge_p->rom_size > MAX_ROM_SIZE))
       if (cartridge_p->rom_size <= 0)

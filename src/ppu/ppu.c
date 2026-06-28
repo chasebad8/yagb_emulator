@@ -33,6 +33,10 @@
 
 #define PPU_SPRITE_Y_OFFSET (16)
 
+#define PPU_IS_NEW_SCANLINE(ticks) ((ticks) == 0)
+#define PPU_IS_NEW_FRAME(scanlines) ((scanlines) == 0)
+#define PPU_LY_EQUALS_LYC(ly, lyc) ((ly) == (lyc))
+
 typedef struct
 {
    uint8_t y_pos;
@@ -97,7 +101,7 @@ static uint8_t ppu_get_tile_pixel_color_id(ppu_t *ppu, uint16_t tile_addr, uint8
 /* tile map = the 32x32 tile map where the value is an index into the tile data
    tile data = the actual tile data, 16 bytes, contains pixel information */
 
-static uint8_t ppu_get_tile_index(ppu_t *ppu,
+uint8_t ppu_get_tile_index(ppu_t *ppu,
                                   uint8_t x_coord,
                                   uint8_t y_coord,
                                   enum tile_source_e tile_source)
@@ -120,10 +124,12 @@ static uint8_t ppu_get_tile_index(ppu_t *ppu,
 
    /* divide by 8 and multiply by 32 because each tile
       is 8x8 pixels and the tile map is 32 tiles wide */
-   uint8_t y_coord_w_offset_relative = ((y_coord_w_offset / 8) * 32);
-   uint8_t x_coord_w_offset_relative =  (x_coord_w_offset / 8);
+   uint16_t y_coord_w_offset_relative = ((y_coord_w_offset / 8) * 32);
+   uint16_t x_coord_w_offset_relative =  (x_coord_w_offset / 8);
 
-   return bus_read(ppu->bus, tile_map_addr_offset + y_coord_w_offset_relative + x_coord_w_offset_relative);
+   uint16_t tile_addr = tile_map_addr_offset + y_coord_w_offset_relative + x_coord_w_offset_relative;
+
+   return bus_read(ppu->bus, tile_addr);
 }
 
 /**
@@ -217,7 +223,7 @@ static bool ppu_is_sprite_on_scanline(ppu_t *ppu, uint8_t sprite_y_pos)
  */
 static void ppu_mode_0_hblank(ppu_t *ppu)
 {
-   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_0_INT_CONTRIB_MASK);
+   ;
 }
 
 /**
@@ -227,8 +233,7 @@ static void ppu_mode_0_hblank(ppu_t *ppu)
  */
 static void ppu_mode_1_vblank(ppu_t *ppu)
 {
-   bus_request_interrupt(ppu->bus, IF_REG_VBLANK_MASK, 0);
-   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_1_INT_CONTRIB_MASK);
+   ;
 }
 
 /**
@@ -241,8 +246,6 @@ static void ppu_mode_1_vblank(ppu_t *ppu)
 static void ppu_mode_2_oam_query(ppu_t *ppu)
 {
    uint8_t sprite_cnt = 0;
-
-   bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_2_INT_CONTRIB_MASK);
 
    for (uint8_t sprite_index = 0; sprite_index < PPU_MAX_SPRITES; sprite_index++)
    {
@@ -269,7 +272,7 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-   //int colour_palette[4] = { 0x8cad28, 0x6c9421, 0x426b29, 0x214231 };
+   //int colour_palette[4] = { 0x00, 0x01, 0x10, 0x11 };
    uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
@@ -280,7 +283,7 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
       tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
 
       ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
-      //colour_palette[rand() % 4];
+      //ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = colour_palette[rand() % 4];
       //ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
 
       /* we now know the colour for this pixel */
@@ -309,7 +312,26 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
 
    for(int pixel = 0; pixel < FRAME_BUFFER_SIZE; pixel++)
    {
-      ppu_p->frame_buffer[pixel] = 	0x00;
+      if(pixel % 4 == 0)
+      {
+         ppu_p->frame_buffer[pixel] = 0x10;
+      }
+      else
+      {
+         ppu_p->frame_buffer[pixel] = 0x01;
+      }
+   }
+
+   for(int pixel = 0; pixel < FRAME_BUFFER_SIZE; pixel++)
+   {
+      if(pixel % 4 == 0)
+      {
+         ppu_p->vram[pixel] = 0x01;
+      }
+      else
+      {
+         ppu_p->vram[pixel] = 0x11;
+      }
    }
 
    LOG_DEBUG("ppu init success!");
@@ -323,24 +345,46 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
  */
 static void ppu_update_state_machine(ppu_t *ppu)
 {
-   ppu->frame_count += bus_read(ppu->bus, LY_REG) == 144;
-   ppu->tick_count  = (ppu->tick_count + 1) % PPU_CYCLES_PER_SCANLINE;
+   uint8_t scanline = bus_read(ppu->bus, LY_REG);
 
-   if(ppu->tick_count == 0)
+   ppu->tick_count = (ppu->tick_count + 1) % PPU_CYCLES_PER_SCANLINE;
+
+   if(PPU_IS_NEW_SCANLINE(ppu->tick_count) == true)
    {
-      bus_write(ppu->bus, LY_REG, (bus_read(ppu->bus, LY_REG) + 1) % PPU_NUM_SCANLINES);
+      if(PPU_IS_NEW_FRAME(scanline) == true)
+      {
+         ppu->frame_count++;
+      }
+
+      bus_write(ppu->bus, LY_REG, ++scanline % PPU_NUM_SCANLINES);
    }
 
-      /* TODO NEEDS WORK! THE STATE MACHINE SUCKS!!! */
-   LOG_DEBUG("ppu->tick_count %d, frame count %d, mode %d offset %d, LY %d", ppu->tick_count,
-                                                                             ppu->frame_count,
-                                                                             bus_read(ppu->bus, STAT_REG) & 0x3,
-                                                                             PPU_MODE_1_OFFSET,
-                                                                             bus_read(ppu->bus, LY_REG));
-
-   if (bus_read(ppu->bus, LY_REG) >= PPU_NUM_VISIBLE_SCANLINES)
+   if(bus_read(ppu->bus, LYC_REG) == scanline)
    {
-      ppu->state = STATE_1_VBLANK;
+      if(ppu->lyc_triggered == false)
+      {
+         bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_LYC_INT_CONTRIB_MASK);
+         ppu->lyc_triggered = true;
+      }
+
+      bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, true);
+   }
+   else
+   {
+      bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, false);
+      ppu->lyc_triggered = false;
+   }
+
+   LOG_DEBUG("ppu->tick_count %d, frame count %d, mode %d LY %d", ppu->tick_count,
+                                                                  ppu->frame_count,
+                                                                  bus_read_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK),
+                                                                  bus_read(ppu->bus, LY_REG));
+
+   uint8_t new_state = ppu->state;
+
+   if (scanline >= PPU_NUM_VISIBLE_SCANLINES)
+   {
+      new_state = STATE_1_VBLANK;
    }
    else
    {
@@ -348,20 +392,42 @@ static void ppu_update_state_machine(ppu_t *ppu)
 
       if (elapsed >= PPU_MODE_0_OFFSET)
       {
-         ppu->state = STATE_0_HBLANK;
+         new_state = STATE_0_HBLANK;
       }
       else if (elapsed >= PPU_MODE_3_OFFSET)
       {
-         ppu->state = STATE_3_PIXEL_TRANSFER;
+         new_state = STATE_3_PIXEL_TRANSFER;
       }
       else
       {
-         ppu->state = STATE_2_OAM_QUERY;
+         new_state = STATE_2_OAM_QUERY;
       }
    }
 
-   /* update state in STAT reg */
-   bus_write(ppu->bus, STAT_REG, bus_read(ppu->bus, IF_REG) | ppu->state);
+   if(new_state != ppu->state)
+   {
+      ppu->state = new_state;
+      bus_write_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK, new_state);
+
+      switch(ppu->state)
+      {
+         case STATE_0_HBLANK:
+            bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_0_INT_CONTRIB_MASK);
+            break;
+
+         case STATE_1_VBLANK:
+            bus_request_interrupt(ppu->bus, IF_REG_VBLANK_MASK, 0);
+            bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_1_INT_CONTRIB_MASK);
+            break;
+
+         case STATE_2_OAM_QUERY:
+            bus_request_interrupt(ppu->bus, IF_REG_LCD_MASK, STAT_REG_MODE_2_INT_CONTRIB_MASK);
+            break;
+
+         default:
+            break;
+      }
+   }
 }
 
 /**
@@ -380,21 +446,9 @@ void ppu_step(ppu_t *ppu, uint8_t num_ticks)
    /* ppu operates 1 tick at a time */
    uint8_t consumed_ticks = num_ticks;
 
-   uint8_t prev_state = 0;
-   uint8_t new_state = 0;
-
    while(consumed_ticks--)
    {
-      prev_state = bus_read(ppu->bus, STAT_REG);
-
       ppu_update_state_machine(ppu);
-
-      new_state = bus_read(ppu->bus, STAT_REG);
-
-      if(prev_state != new_state)
-      {
-         LOG_DEBUG("ppu state updated: %d", new_state);
-      }
 
       switch(ppu->state)
       {

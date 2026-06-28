@@ -31,7 +31,8 @@ typedef enum
  */
 typedef enum
 {
-   STAT_REG_LYC_EQ_LY_CONTRIB_MASK  = 0x04,
+   STAT_REG_PPU_MODE_MASK           = 0x03,
+   STAT_REG_LYC_EQ_LY_MASK          = 0x04,
    STAT_REG_MODE_0_INT_CONTRIB_MASK = 0x08,
    STAT_REG_MODE_1_INT_CONTRIB_MASK = 0x10,
    STAT_REG_MODE_2_INT_CONTRIB_MASK = 0x20,
@@ -154,4 +155,11 @@ uint8_t bus_read(bus_t    *bus_p,
 void bus_request_interrupt(bus_t          *bus,
                            if_reg_mask_t   interrupt_mask,
                            stat_reg_mask_t lcd_interrupt_contrib_mask);
+
+void bus_write_stat_reg(bus_t           *bus,
+                        stat_reg_mask_t  mask,
+                        uint8_t          value);
+
+uint8_t bus_read_stat_reg(bus_t           *bus,
+                          stat_reg_mask_t  mask);
 #endif

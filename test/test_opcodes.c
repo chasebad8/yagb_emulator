@@ -673,15 +673,11 @@ int run_cpu_tests(void)
 {
    UNITY_BEGIN();
 
-   TEST_MESSAGE("Running opcode unit tests ...");
-
    RUN_TEST(test_op_ld);
    RUN_TEST(test_op_inc_dec);
    RUN_TEST(test_op_artithmetic);
    RUN_TEST(test_op_pc_misc);
    RUN_TEST(test_op_bit_shifting);
-
-   TEST_MESSAGE("done.");
 
    return UNITY_END();
 }

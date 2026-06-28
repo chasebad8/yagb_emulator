@@ -342,10 +342,10 @@ static uint8_t op_ld_m16_a(cpu_t *cpu, uint8_t opcode)
 static uint8_t op_ld_a_m16(cpu_t *cpu, uint8_t opcode)
 {
    r16_idx_e src_reg = ((opcode >> 4) & 0x3);
+   LOG_OPCODE("LD A, [%s]", r16_to_string((r16_idx_e)src_reg));
 
    cpu->A = read_m16(cpu, src_reg);
 
-   LOG_OPCODE("LD A, [%s]", r16_to_string((r16_idx_e)src_reg));
    return 8;
 }
 

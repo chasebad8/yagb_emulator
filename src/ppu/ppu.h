@@ -51,6 +51,8 @@ typedef struct
    uint16_t tick_count;
    uint32_t frame_count;
 
+   uint8_t lyc_triggered;
+
 } ppu_t;
 
 void ppu_init(ppu_t *ppu_p, bus_t *bus_p);
@@ -62,5 +64,10 @@ uint8_t ppu_vram_read(ppu_t *ppu_p, uint16_t addr);
 
 void ppu_oam_write(ppu_t *ppu_p, uint16_t addr, uint8_t value);
 uint8_t ppu_oam_read(ppu_t *ppu_p, uint16_t addr);
+
+uint8_t ppu_get_tile_index(ppu_t *ppu,
+                                  uint8_t x_coord,
+                                  uint8_t y_coord,
+                                  enum tile_source_e tile_source);
 
 #endif // PPU_H

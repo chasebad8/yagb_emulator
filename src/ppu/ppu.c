@@ -33,6 +33,8 @@
 
 #define PPU_SPRITE_Y_OFFSET (16)
 
+#define PPU_MAX_TILES (32 * 32)
+
 #define PPU_IS_NEW_SCANLINE(ticks) ((ticks) == 0)
 #define PPU_IS_NEW_FRAME(scanlines) ((scanlines) == 0)
 #define PPU_LY_EQUALS_LYC(ly, lyc) ((ly) == (lyc))
@@ -87,7 +89,7 @@ typedef struct
  * @param pixel_index
  * @return uint8_t
  */
-static uint8_t ppu_get_tile_pixel_color_id(ppu_t *ppu, uint16_t tile_addr, uint8_t pixel_index)
+uint8_t ppu_get_tile_pixel_color_id(ppu_t *ppu, uint16_t tile_addr, uint8_t pixel_index)
 {
    uint8_t tile_byte_low  = bus_read(ppu->bus, tile_addr);
    uint8_t tile_byte_high = bus_read(ppu->bus, tile_addr + 1);
@@ -141,7 +143,7 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
  * @param tile_index
  * @param tile_source
  */
-static uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
+uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
                                        uint8_t            tile_index,
                                        enum tile_source_e tile_source)
 {
@@ -149,24 +151,32 @@ static uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
 
    uint16_t tile_addr = 0;
 
-   switch(tile_source)
+   if(tile_index > PPU_MAX_TILES)
    {
-       case TILE_SOURCE_SPRITE:
-          tile_addr = 0x8000 + tile_index * 16;
-          break;
-
-       case TILE_SOURCE_BG:
-       case TILE_SOURCE_WINDOW:
-          if(tile_data_mode == 0)
-          {
-             tile_addr = 0x9000 + ((int8_t)tile_index) * 16;
-          }
-          else
-          {
-             tile_addr = 0x8000 + tile_index * 16;
-          }
-          break;
+      LOG_ERROR("invalid tile index received: 0x%0X", tile_index);
    }
+   else
+   {
+      switch(tile_source)
+      {
+         case TILE_SOURCE_SPRITE:
+            tile_addr = 0x8000 + tile_index * 16;
+            break;
+
+         case TILE_SOURCE_BG:
+         case TILE_SOURCE_WINDOW:
+            if(tile_data_mode == 1)
+            {
+               tile_addr = 0x9000 + ((int8_t)tile_index * 16);
+            }
+            else
+            {
+               tile_addr = 0x8000 + tile_index * 16;
+            }
+            break;
+      }
+   }
+
    return tile_addr;
 }
 
@@ -280,7 +290,7 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
       tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
-      tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG);
+      tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
 
       ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
       //ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = colour_palette[rand() % 4];

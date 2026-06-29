@@ -70,4 +70,10 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
                                   uint8_t y_coord,
                                   enum tile_source_e tile_source);
 
+uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
+                                       uint8_t            tile_index,
+                                       enum tile_source_e tile_source);
+
+uint8_t ppu_get_tile_pixel_color_id(ppu_t *ppu, uint16_t tile_addr, uint8_t pixel_index);
+
 #endif // PPU_H

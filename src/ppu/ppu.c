@@ -451,8 +451,6 @@ static void ppu_update_state_machine(ppu_t *ppu)
  */
 void ppu_step(ppu_t *ppu, uint8_t num_ticks)
 {
-   LOG_DEBUG("stepping ppu %d ticks", num_ticks);
-
    /* ppu operates 1 tick at a time */
    uint8_t consumed_ticks = num_ticks;
 
@@ -479,8 +477,6 @@ void ppu_step(ppu_t *ppu, uint8_t num_ticks)
             break;
       }
    }
-
-   LOG_INFO("done stepping ppu %d ticks", num_ticks);
 }
 
 /**

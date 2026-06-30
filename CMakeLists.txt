@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 find_package(SDL2 REQUIRED)
+find_package(Threads REQUIRED)
 
 set(YAGB_SOURCES
    src/emulator.c
@@ -33,7 +34,7 @@ target_include_directories(yagb_core PUBLIC
 
 #yagb static library definitions
 target_compile_definitions(yagb_core PRIVATE
-   LOG_LEVEL=10
+   LOG_LEVEL=2
    #LOG_OPCODES
    EXIT_ON_BAD_OPCODE
    LOGFILE
@@ -42,7 +43,8 @@ target_compile_definitions(yagb_core PRIVATE
 target_compile_options(yagb_core PRIVATE
    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
    -g
-   -fsanitize=address
+   #-fsanitize=address
+   -fsanitize=thread
 )
 
 add_executable(yagb src/main.c)
@@ -50,16 +52,19 @@ add_executable(yagb src/main.c)
 target_link_libraries(yagb PRIVATE
    yagb_core
    SDL2::SDL2
+   Threads::Threads
 )
 
 target_compile_options(yagb PRIVATE
    -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
    -g
-   -fsanitize=address
+   #-fsanitize=address
+   -fsanitize=thread
 )
 
 target_link_options(yagb PRIVATE
-   -fsanitize=address
+   #-fsanitize=address
+   -fsanitize=thread
 )
 
 # ********************
@@ -88,6 +93,7 @@ add_executable(test_all
 target_link_libraries(test_all PRIVATE
    yagb_core_test
    SDL2::SDL2
+   Threads::Threads
 )
 
 add_test(NAME all_tests COMMAND test_all)

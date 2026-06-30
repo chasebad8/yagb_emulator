@@ -25,7 +25,6 @@ int main(int argc, char *argv[])
    }
    else if(argc > 2)
    {
-      LOG_ERROR("too many arguments, expecting one");
       exit(-1);
    }
    else

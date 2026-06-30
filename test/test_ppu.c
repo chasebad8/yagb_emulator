@@ -32,21 +32,21 @@
 
 static uint32_t emulator_2bb_to_rgba(uint8_t pixel)
 {
-   if (pixel == 0x00)
+   if (pixel == 0b00)
    {
-      return 0x214231;
+      return 0x8cad28;
    }
-   else if (pixel == 0x01)
-   {
-      return 0x426b29;
-   }
-   else if (pixel == 0x10)
+   else if (pixel == 0b01)
    {
       return 0x6c9421;
    }
-   else if (pixel == 0x11)
+   else if (pixel == 0b10)
    {
-      return 0x8cad28;
+      return 0x426b29;
+   }
+   else if (pixel == 0b11)
+   {
+      return 0x214231;
    }
 }
 
@@ -166,7 +166,7 @@ void test_ppu_get_tile_pixel_color_id( void )
    tile_pixel_colour = ppu_get_tile_pixel_color_id(&emu.ppu, 0x8000, 0x10);
    TEST_ASSERT_EQUAL_HEX(0x01, tile_pixel_colour);
 
-   uint32_t pixel_arr[128] = { 0x214231 };
+   uint32_t pixel_arr[128] = { 0 };
    uint8_t pixel_col = 0;
 
    const int SCALE = 32;

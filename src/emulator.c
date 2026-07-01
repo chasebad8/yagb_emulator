@@ -85,9 +85,13 @@ void debug_draw_io(SDL_Renderer *renderer, io_t *io)
 
    DRAW_LINE("IO REGISTERS");
 
-   DRAW_LINE("IF:     0x%02X  LCDC: 0x%02X  STAT: 0x%02X", io->io_ram[0x0F], io->io_ram[0x40], io->io_ram[0x41]);
-   DRAW_LINE("SCY: 0x%02X  SCX: 0x%02X", io->io_ram[0x42], io->io_ram[0x43]);
-   DRAW_LINE("LY:    0x%02X  LYC: 0x%02X", io->io_ram[0x44], io->io_ram[0x45]);
+   DRAW_LINE("IF:  %5s 0x%02X", "", io->io_ram[0x0F]);
+   DRAW_LINE("LCDC: 0x%02X",        io->io_ram[0x40]);
+   DRAW_LINE("STAT:%s 0x%02X",  "", io->io_ram[0x41]);
+   DRAW_LINE("SCY: %2s 0x%02X", "", io->io_ram[0x42]);
+   DRAW_LINE("SCX: %2s 0x%02X", "", io->io_ram[0x43]);
+   DRAW_LINE("LY:  %4s 0x%02X", "", io->io_ram[0x44]);
+   DRAW_LINE("LYC: %2s 0x%02X", "", io->io_ram[0x45]);
 }
 
 void debug_draw_text(SDL_Renderer *renderer,
@@ -146,19 +150,19 @@ static void emulator_2bb_to_rgba(emulator_t *emulator)
 {
    for (int pixel_index = 0; pixel_index < FRAME_BUFFER_SIZE; pixel_index++)
    {
-      if (emulator->ppu.frame_buffer[pixel_index] == 0x00)
+      if (emulator->ppu.frame_buffer[pixel_index] == 0b00)
       {
          rgb_frame_buffer[pixel_index] = 0x8cad28;
       }
-      else if (emulator->ppu.frame_buffer[pixel_index] == 0x01)
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0b01)
       {
          rgb_frame_buffer[pixel_index] = 0x6c9421;
       }
-      else if (emulator->ppu.frame_buffer[pixel_index] == 0x10)
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0b10)
       {
          rgb_frame_buffer[pixel_index] = 0x426b29;
       }
-      else if (emulator->ppu.frame_buffer[pixel_index] == 0x11)
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0b11)
       {
          rgb_frame_buffer[pixel_index] = 0x214231;
       }
@@ -388,7 +392,7 @@ void emulator_run(emulator_t *emulator)
          debug_draw_io(renderer, &emulator->io);
 
          SDL_RenderPresent(renderer);
-         SDL_Delay(10);
+         //SDL_Delay(10);
 
 #endif
          curr = bus_read(&emulator->bus, LY_REG);

@@ -319,22 +319,26 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    memset(ppu_p->oam,  0, OAM_SIZE);
    memset(ppu_p->frame_buffer, 0, FRAME_BUFFER_SIZE);
 
-   ppu_p->vram[0x8000 - 0x8000] = 0xFF;
-   ppu_p->vram[0x8001 - 0x8000] = 0x00;
-   ppu_p->vram[0x8002 - 0x8000] = 0x7E;
-   ppu_p->vram[0x8003 - 0x8000] = 0xFF;
-   ppu_p->vram[0x8004 - 0x8000] = 0x85;
-   ppu_p->vram[0x8005 - 0x8000] = 0x81;
-   ppu_p->vram[0x8006 - 0x8000] = 0x89;
-   ppu_p->vram[0x8007 - 0x8000] = 0x83;
-   ppu_p->vram[0x8008 - 0x8000] = 0x93;
-   ppu_p->vram[0x8009 - 0x8000] = 0x85;
-   ppu_p->vram[0x800A - 0x8000] = 0xA5;
-   ppu_p->vram[0x800B - 0x8000] = 0x8B;
-   ppu_p->vram[0x800C - 0x8000] = 0xC9;
-   ppu_p->vram[0x800D - 0x8000] = 0x97;
-   ppu_p->vram[0x800E - 0x8000] = 0x7E;
-   ppu_p->vram[0x800F - 0x8000] = 0xFF;
+   /* for fun init all vram tiles to the same image */
+   for(uint16_t mult = 0; mult < 255; mult ++)
+   {
+      ppu_p->vram[0x8000 + (mult*16) - 0x8000] = 0xFF;
+      ppu_p->vram[0x8001 + (mult*16) - 0x8000] = 0x00;
+      ppu_p->vram[0x8002 + (mult*16) - 0x8000] = 0x7E;
+      ppu_p->vram[0x8003 + (mult*16) - 0x8000] = 0xFF;
+      ppu_p->vram[0x8004 + (mult*16) - 0x8000] = 0x85;
+      ppu_p->vram[0x8005 + (mult*16) - 0x8000] = 0x81;
+      ppu_p->vram[0x8006 + (mult*16) - 0x8000] = 0x89;
+      ppu_p->vram[0x8007 + (mult*16) - 0x8000] = 0x83;
+      ppu_p->vram[0x8008 + (mult*16) - 0x8000] = 0x93;
+      ppu_p->vram[0x8009 + (mult*16) - 0x8000] = 0x85;
+      ppu_p->vram[0x800A + (mult*16) - 0x8000] = 0xA5;
+      ppu_p->vram[0x800B + (mult*16) - 0x8000] = 0x8B;
+      ppu_p->vram[0x800C + (mult*16) - 0x8000] = 0xC9;
+      ppu_p->vram[0x800D + (mult*16) - 0x8000] = 0x97;
+      ppu_p->vram[0x800E + (mult*16) - 0x8000] = 0x7E;
+      ppu_p->vram[0x800F + (mult*16) - 0x8000] = 0xFF;
+   }
 
    LOG_DEBUG("ppu init success!");
 }
@@ -357,8 +361,6 @@ static void ppu_update_state_machine(ppu_t *ppu)
       {
          ppu->frame_count++;
       }
-
-      LOG_INFO("LYC++ %d, LY: %0X", scanline % PPU_NUM_SCANLINES, bus_read(ppu->bus, LY_REG));
 
       bus_write(ppu->bus, LY_REG, ++scanline % PPU_NUM_SCANLINES);
    }

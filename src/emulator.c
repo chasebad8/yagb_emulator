@@ -3,21 +3,124 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "emulator.h"
 #include "common/logging.h"
 
+typedef struct
+{
+    TTF_Font *font;
+    SDL_Color color;
+} debug_renderer_t;
+
+debug_renderer_t debug;
+
+void debug_draw_text(SDL_Renderer *renderer,
+                     debug_renderer_t *debug,
+                     int x,
+                     int y,
+                     const char *text);
+
+#define DRAW_LINE(fmt, ...) do { \
+    snprintf(line, sizeof(line), fmt, ##__VA_ARGS__); \
+    debug_draw_text(renderer, &debug, 10, y, line); \
+    y += 16; \
+} while (0)
+
+int y = 10;
+char line[64];
+
+
 SDL_Window   *window;
 SDL_Renderer *renderer;
 SDL_Texture  *texture;
+SDL_Texture  *vram_texture;
 
 static int rgb_frame_buffer[FRAME_BUFFER_SIZE];
+static uint32_t vram_preview_buffer[128 * 128];
 
 pthread_t thread;
 int value = 42;
 
-#define W 160
-#define H 144
+#define WIDTH 160
+#define HEIGHT 144
+#define DEBUG_COL_WIDTH 240
+#define GAME_SCALE 4
+#define GAME_SCREEN_WIDTH (WIDTH * GAME_SCALE)
+#define GAME_SCREEN_HEIGHT (HEIGHT * GAME_SCALE)
+#define VRAM_PREVIEW_WIDTH 128
+#define VRAM_PREVIEW_HEIGHT 128
+#define VRAM_PREVIEW_SCALE 2
+#define VRAM_VIEWPORT_GAP 20
+#define WINDOW_WIDTH (DEBUG_COL_WIDTH + GAME_SCREEN_WIDTH + VRAM_VIEWPORT_GAP + (VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_SCALE))
+#define WINDOW_HEIGHT GAME_SCREEN_HEIGHT
+
+void debug_draw_cpu(SDL_Renderer *renderer, cpu_t *cpu)
+{
+    int y = 10;
+    char line[128];
+
+    DRAW_LINE("CPU REGISTERS");
+
+    DRAW_LINE("PC: 0x%04X  SP: 0x%04X", cpu->PC, cpu->SP);
+
+    DRAW_LINE("AF: 0x%02X%02X", cpu->A, cpu->F);
+    DRAW_LINE("BC: 0x%02X%02X", cpu->B, cpu->C);
+    DRAW_LINE("DE: 0x%02X%02X", cpu->D, cpu->E);
+    DRAW_LINE("HL: 0x%02X%02X", cpu->H, cpu->L);
+
+    DRAW_LINE(" ");
+
+    DRAW_LINE("A: 0x%02X F: 0x%02X", cpu->A, cpu->F);
+    DRAW_LINE("B: 0x%02X C: 0x%02X", cpu->B, cpu->C);
+    DRAW_LINE("D: 0x%02X E: 0x%02X", cpu->D, cpu->E);
+    DRAW_LINE("H: 0x%02X L: 0x%02X", cpu->H, cpu->L);
+}
+
+void debug_draw_io(SDL_Renderer *renderer, io_t *io)
+{
+   int y = 200;
+   char line[128];
+
+   DRAW_LINE("IO REGISTERS");
+
+   DRAW_LINE("IF:     0x%02X  LCDC: 0x%02X  STAT: 0x%02X", io->io_ram[0x0F], io->io_ram[0x40], io->io_ram[0x41]);
+   DRAW_LINE("SCY: 0x%02X  SCX: 0x%02X", io->io_ram[0x42], io->io_ram[0x43]);
+   DRAW_LINE("LY:    0x%02X  LYC: 0x%02X", io->io_ram[0x44], io->io_ram[0x45]);
+}
+
+void debug_draw_text(SDL_Renderer *renderer,
+                     debug_renderer_t *debug,
+                     int x,
+                     int y,
+                     const char *text)
+{
+    SDL_Surface *surface =
+        TTF_RenderText_Blended(debug->font,
+                               text,
+                               debug->color);
+
+    SDL_Texture *texture =
+        SDL_CreateTextureFromSurface(renderer,
+                                     surface);
+
+    SDL_Rect dst =
+    {
+        x,
+        y,
+        surface->w,
+        surface->h
+    };
+
+    SDL_RenderCopy(renderer,
+                   texture,
+                   NULL,
+                   &dst);
+
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+}
 
 static uint32_t emulator_2bb_to_rgba_test(uint8_t pixel)
 {
@@ -62,63 +165,61 @@ static void emulator_2bb_to_rgba(emulator_t *emulator)
    }
 }
 
-void *vram_display(void *arg)
+static void emulator_update_vram_preview(const uint32_t *pixels)
 {
-   emulator_t *emu = (emulator_t *)arg;
-
-   SDL_Init(SDL_INIT_VIDEO);
-
-   SDL_Window *window_l = SDL_CreateWindow(
-      "VRAM DUMP",
-      SDL_WINDOWPOS_CENTERED,
-      SDL_WINDOWPOS_CENTERED,
-      160 * 4,
-      144 * 4,
-      SDL_WINDOW_SHOWN);
-
-   SDL_Renderer *renderer_l = SDL_CreateRenderer(
-      window,
-      -1,
-      SDL_RENDERER_ACCELERATED);
-
-   SDL_Texture *texture_l = SDL_CreateTexture(
-      renderer,
-      SDL_PIXELFORMAT_ARGB8888,
-      SDL_TEXTUREACCESS_STREAMING,
-      160,
-      144);
-
-   uint8_t pixel_arr[255*64] = { 0 };
-   uint32_t pixel_col = 0;
-
-   LOG_INFO("bus = %p, ppu addr = %p", emu->bus, &emu->ppu);
-
-   while(1)
+   if (vram_texture == NULL)
    {
-      for(uint8_t tile_index = 0; tile_index < 255; tile_index++)
-      {
-         for(uint8_t pixel = 0; pixel < 64; pixel++)
-         {
-            // pixel_col = ppu_get_tile_pixel_color_id(&emu->ppu,
-            //                                        ppu_get_tile_data_addr(&emu->ppu, tile_index, TILE_SOURCE_BG) + ((pixel / 8) * 2),
-            //                                        pixel);
-            pixel_col = ppu_get_tile_pixel_color_id(&emu->ppu,
-                                                   0,
-                                                   0);
-
-            //pixel_arr[pixel] = emulator_2bb_to_rgba_test(pixel_col);
-         }
-      }
-
-      // SDL_UpdateTexture(texture_l, NULL, pixel_arr, W * sizeof(uint32_t));
-
-      // SDL_RenderClear(renderer_l);
-      // SDL_RenderCopy(renderer_l, texture_l, NULL, NULL);
-      // SDL_RenderPresent(renderer_l);
-
+      return;
    }
 
-   return NULL;
+   if (pixels != NULL)
+   {
+      for (int i = 0; i < (VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_HEIGHT); i++)
+      {
+         vram_preview_buffer[i] = pixels[i];
+      }
+   }
+
+   SDL_UpdateTexture(vram_texture,
+                     NULL,
+                     vram_preview_buffer,
+                     VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
+}
+
+static void emulator_refresh_vram_preview(emulator_t *emulator)
+{
+   if (emulator == NULL)
+   {
+      return;
+   }
+
+   uint32_t pixel_arr[VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_HEIGHT] = { 0 };
+
+   for (uint16_t tile_index = 0; tile_index < 256; tile_index++)
+   {
+      uint16_t tile_addr = ppu_get_tile_data_addr(&emulator->ppu, tile_index, TILE_SOURCE_BG);
+
+      for (uint8_t pixel = 0; pixel < 64; pixel++)
+      {
+         uint8_t tile_x = tile_index % 16;
+         uint8_t tile_y = tile_index / 16;
+
+         uint8_t px = pixel % 8;
+         uint8_t py = pixel / 8;
+
+         uint8_t x = tile_x * 8 + px;
+         uint8_t y = tile_y * 8 + py;
+
+         uint8_t pixel_col = ppu_get_tile_pixel_color_id(&emulator->ppu, tile_addr + ((pixel / 8) * 2), pixel);
+
+         if (x < VRAM_PREVIEW_WIDTH && y < VRAM_PREVIEW_HEIGHT)
+         {
+            pixel_arr[y * VRAM_PREVIEW_WIDTH + x] = emulator_2bb_to_rgba_test(pixel_col);
+         }
+      }
+   }
+
+   emulator_update_vram_preview(pixel_arr);
 }
 
 /* an emulator instance will be created for 1 emulator. Technically we can support multiple emulators at once. */
@@ -147,20 +248,37 @@ void emulator_init(emulator_t *emulator)
 
       io_init(&emulator->io);
 
-      if (pthread_create(&thread, NULL, vram_display, &emulator) != 0)
+      TTF_Init();
+
+      debug.font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14);
+
+      if (!debug.font)
+      {
+         LOG_ERROR("Font load failed: %s\n", TTF_GetError());
+         exit(1);
+      }
+
+      debug.color = (SDL_Color)
+      {
+         255, 255, 255, 255
+      };
+
+#if 0
+      if (pthread_create(&thread, NULL, vram_display, emulator) != 0)
       {
          LOG_ERROR("pthread_create failed");
       }
+#endif
 
-#ifdef DEBUG_MODE
+#ifndef DEBUG_MODE
       SDL_Init(SDL_INIT_VIDEO);
 
       window = SDL_CreateWindow(
          "Yet Another GameBoy",
          SDL_WINDOWPOS_CENTERED,
          SDL_WINDOWPOS_CENTERED,
-         160 * 4,
-         144 * 4,
+         WINDOW_WIDTH,
+         WINDOW_HEIGHT,
          SDL_WINDOW_SHOWN);
 
       renderer = SDL_CreateRenderer(
@@ -175,14 +293,23 @@ void emulator_init(emulator_t *emulator)
          160,
          144);
 
-      /* cpu_process_interrupts(); */
-      SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, W * sizeof(uint32_t));
+      vram_texture = SDL_CreateTexture(
+         renderer,
+         SDL_PIXELFORMAT_ARGB8888,
+         SDL_TEXTUREACCESS_STREAMING,
+         VRAM_PREVIEW_WIDTH,
+         VRAM_PREVIEW_HEIGHT);
+
+      SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, WIDTH * sizeof(uint32_t));
+      SDL_UpdateTexture(vram_texture, NULL, vram_preview_buffer, VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
 
       SDL_RenderClear(renderer);
-      SDL_RenderCopy(renderer, texture, NULL, NULL);
-      SDL_RenderPresent(renderer);
 
-      //SDL_Delay(1000);
+      SDL_Rect game_rect = { DEBUG_COL_WIDTH, 0, GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT };
+      SDL_Rect vram_rect = { DEBUG_COL_WIDTH + GAME_SCREEN_WIDTH + VRAM_VIEWPORT_GAP, 0, VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_SCALE, VRAM_PREVIEW_HEIGHT * VRAM_PREVIEW_SCALE };
+      SDL_RenderCopy(renderer, texture, NULL, &game_rect);
+      SDL_RenderCopy(renderer, vram_texture, NULL, &vram_rect);
+      SDL_RenderPresent(renderer);
 #endif
    }
 }
@@ -223,11 +350,12 @@ void emulator_run(emulator_t *emulator)
    /* temporary */
    uint8_t cycle_count = 0;
 
-   static uint8_t wait = 0;
+   static uint8_t curr = 0;
 
    emulator_2bb_to_rgba(emulator);
+   emulator_refresh_vram_preview(emulator);
 
-   SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, W * sizeof(uint32_t));
+   SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, WIDTH * sizeof(uint32_t));
 
    SDL_RenderClear(renderer);
    SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -235,30 +363,45 @@ void emulator_run(emulator_t *emulator)
 
    while (1)
    {
-      cycle_count = cpu_step(&emulator->cpu);
+      cycle_count  = cpu_step(&emulator->cpu);
+      cycle_count += cpu_process_interrupts(&emulator->cpu);
+
       ppu_step(&emulator->ppu, cycle_count);
 
-      if(bus_read(&emulator->bus, LY_REG) == 144)
+      //SDL_Delay(100);
+      if(bus_read(&emulator->bus, LY_REG) != curr)
       {
          emulator_2bb_to_rgba(emulator);
+         emulator_refresh_vram_preview(emulator);
 
-#ifdef DEBUG_MODE
+#ifndef DEBUG_MODE
          /* cpu_process_interrupts(); */
-         SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, W * sizeof(uint32_t));
+         SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, WIDTH * sizeof(uint32_t));
 
          SDL_RenderClear(renderer);
-         SDL_RenderCopy(renderer, texture, NULL, NULL);
+
+         SDL_Rect game_rect = { DEBUG_COL_WIDTH, 0, GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT };
+         SDL_Rect vram_rect = { DEBUG_COL_WIDTH + GAME_SCREEN_WIDTH + VRAM_VIEWPORT_GAP, 0, VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_SCALE, VRAM_PREVIEW_HEIGHT * VRAM_PREVIEW_SCALE };
+         SDL_RenderCopy(renderer, texture, NULL, &game_rect);
+         SDL_RenderCopy(renderer, vram_texture, NULL, &vram_rect);
+         debug_draw_cpu(renderer, &emulator->cpu);
+         debug_draw_io(renderer, &emulator->io);
+
          SDL_RenderPresent(renderer);
+         SDL_Delay(10);
+
 #endif
-         if(wait == 0)
-         {
-            SDL_Delay(50);
-            wait = 1;
-         }
-      }
-      else
-      {
-         wait = 0;
+         curr = bus_read(&emulator->bus, LY_REG);
+         // if(wait == 0)
+         // {
+         //    SDL_Delay(50);
+         //    wait = 1;
+         // }
+         // }
+         // else
+         // {
+         //    wait = 0;
+         // }
       }
    }
 }

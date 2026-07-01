@@ -132,4 +132,11 @@ uint8_t cpu_step(cpu_t *cpu);
  */
 void cpu_debug_run_opcode(cpu_t* cpu, uint8_t opcode);
 
+/**
+ * @brief
+ *
+ * @param cpu
+ */
+uint8_t cpu_process_interrupts(cpu_t *cpu);
+
 #endif // CPU_H

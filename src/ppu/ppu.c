@@ -18,7 +18,7 @@
 
 #define PPU_NUM_SCANLINES         (154)
 #define PPU_CYCLES_PER_SCANLINE   (456)
-#define PPU_CYCLES_PER_FRAME      (PPU_CYCLES_PER_SCANLINE * PPU_NUM_VISIBLE_SCANLINES)
+#define PPU_CYCLES_PER_FRAME      (PPU_CYCLES_PER_SCANLINE * PPU_NUM_SCANLINES)
 #define PPU_ELAPSED_CYCLES_PER_SCANLINE(cycles) ((cycles) % PPU_CYCLES_PER_SCANLINE)
 
 #define PPU_MODE_0_CYCLES (204)
@@ -111,8 +111,8 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
    bool     tile_map_mode        = (bus_read(ppu->bus, LCDC_REG) & 0x8) >> 3;
    uint16_t tile_map_addr_offset = (tile_map_mode == true) ? 0x9C00 : 0x9800;
 
-   uint8_t y_coord_w_offset = 0;
-   uint8_t x_coord_w_offset = 0;
+   uint16_t y_coord_w_offset = 0;
+   uint16_t x_coord_w_offset = 0;
 
    if (tile_source == TILE_SOURCE_WINDOW)
    {
@@ -120,16 +120,15 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
    }
    else if (tile_source == TILE_SOURCE_BG)
    {
-      y_coord_w_offset = y_coord + bus_read(ppu->bus, SCY_REG);
-      x_coord_w_offset = x_coord + bus_read(ppu->bus, SCX_REG);
+      y_coord_w_offset = (uint16_t)y_coord + bus_read(ppu->bus, SCY_REG);
+      x_coord_w_offset = (uint16_t)x_coord + bus_read(ppu->bus, SCX_REG);
    }
 
-   /* divide by 8 and multiply by 32 because each tile
-      is 8x8 pixels and the tile map is 32 tiles wide */
-   uint16_t y_coord_w_offset_relative = ((y_coord_w_offset / 8) * 32);
-   uint16_t x_coord_w_offset_relative =  (x_coord_w_offset / 8);
+   /* wrap scroll coordinates and tilemap offsets as the DMG does */
+   y_coord_w_offset = (y_coord_w_offset / 8) & 0x1F;
+   x_coord_w_offset = (x_coord_w_offset / 8) & 0x1F;
 
-   uint16_t tile_addr = tile_map_addr_offset + y_coord_w_offset_relative + x_coord_w_offset_relative;
+   uint16_t tile_addr = tile_map_addr_offset + (y_coord_w_offset * 32) + x_coord_w_offset;
 
    return bus_read(ppu->bus, tile_addr);
 }
@@ -213,7 +212,7 @@ static sprite_attr_t ppu_get_sprite_attr(ppu_t *ppu, uint8_t sprite_index)
 static bool ppu_is_sprite_on_scanline(ppu_t *ppu, uint8_t sprite_y_pos)
 {
    uint8_t curr_scanline  = bus_read(ppu->bus, LY_REG);
-   bool    sprite_is_tall = (bus_read(ppu->bus, LCDC_REG) & 0x4) >> 3;
+   bool    sprite_is_tall = (bus_read(ppu->bus, LCDC_REG) & 0x4) >> 2;
    uint8_t sprite_height  = ((sprite_is_tall == true) ? 16 : 8);
 
    if ((curr_scanline >= sprite_y_pos) && (curr_scanline < (sprite_y_pos + sprite_height)))
@@ -282,21 +281,21 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-   //int colour_palette[4] = { 0x00, 0x01, 0x10, 0x11 };
+   bool     lcdc_enabled  = bus_read(ppu->bus, LCDC_REG) & 0x01;
    uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
 
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
-      tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
-      tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
+      if(lcdc_enabled == 0x01)
+      {
+         tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
+         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
 
-      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
-      //ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = colour_palette[rand() % 4];
-      //ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
-
-      /* we now know the colour for this pixel */
+         ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+         //ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = colour_palette[rand() % 4];
+      }
    }
 }
 
@@ -320,29 +319,22 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    memset(ppu_p->oam,  0, OAM_SIZE);
    memset(ppu_p->frame_buffer, 0, FRAME_BUFFER_SIZE);
 
-   for(int pixel = 0; pixel < FRAME_BUFFER_SIZE; pixel++)
-   {
-      if(pixel % 4 == 0)
-      {
-         ppu_p->frame_buffer[pixel] = 0x10;
-      }
-      else
-      {
-         ppu_p->frame_buffer[pixel] = 0x01;
-      }
-   }
-
-   for(int pixel = 0; pixel < FRAME_BUFFER_SIZE; pixel++)
-   {
-      if(pixel % 4 == 0)
-      {
-         ppu_p->vram[pixel] = 0x01;
-      }
-      else
-      {
-         ppu_p->vram[pixel] = 0x11;
-      }
-   }
+   ppu_p->vram[0x8000 - 0x8000] = 0xFF;
+   ppu_p->vram[0x8001 - 0x8000] = 0x00;
+   ppu_p->vram[0x8002 - 0x8000] = 0x7E;
+   ppu_p->vram[0x8003 - 0x8000] = 0xFF;
+   ppu_p->vram[0x8004 - 0x8000] = 0x85;
+   ppu_p->vram[0x8005 - 0x8000] = 0x81;
+   ppu_p->vram[0x8006 - 0x8000] = 0x89;
+   ppu_p->vram[0x8007 - 0x8000] = 0x83;
+   ppu_p->vram[0x8008 - 0x8000] = 0x93;
+   ppu_p->vram[0x8009 - 0x8000] = 0x85;
+   ppu_p->vram[0x800A - 0x8000] = 0xA5;
+   ppu_p->vram[0x800B - 0x8000] = 0x8B;
+   ppu_p->vram[0x800C - 0x8000] = 0xC9;
+   ppu_p->vram[0x800D - 0x8000] = 0x97;
+   ppu_p->vram[0x800E - 0x8000] = 0x7E;
+   ppu_p->vram[0x800F - 0x8000] = 0xFF;
 
    LOG_DEBUG("ppu init success!");
 }
@@ -366,6 +358,8 @@ static void ppu_update_state_machine(ppu_t *ppu)
          ppu->frame_count++;
       }
 
+      LOG_INFO("LYC++ %d, LY: %0X", scanline % PPU_NUM_SCANLINES, bus_read(ppu->bus, LY_REG));
+
       bus_write(ppu->bus, LY_REG, ++scanline % PPU_NUM_SCANLINES);
    }
 
@@ -385,10 +379,10 @@ static void ppu_update_state_machine(ppu_t *ppu)
       ppu->lyc_triggered = false;
    }
 
-   LOG_DEBUG("ppu->tick_count %d, frame count %d, mode %d LY %d", ppu->tick_count,
-                                                                  ppu->frame_count,
-                                                                  bus_read_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK),
-                                                                  bus_read(ppu->bus, LY_REG));
+   // LOG_DEBUG("ppu->tick_count %d, frame count %d, mode %d LY %d", ppu->tick_count,
+   //                                                                ppu->frame_count,
+   //                                                                bus_read_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK),
+   //                                                                bus_read(ppu->bus, LY_REG));
 
    uint8_t new_state = ppu->state;
 

@@ -133,9 +133,15 @@ static memory_region_t bus_get_region(uint16_t addr)
 
 uint8_t bus_read(bus_t *bus_p, uint16_t addr)
 {
+   if(bus_p == NULL)
+   {
+      LOG_ERROR("bus (%p) pointer null", bus_p);
+      exit(-1);
+   }
+   else
    if ((bus_p->ppu == NULL) || (bus_p->rom == NULL))
    {
-      LOG_ERROR("PPU (%p) or ROM (%p) not connected to bus", bus_p->ppu, bus_p->rom);
+      LOG_ERROR("bus (%p), PPU (%p) or ROM (%p) not connected to bus", bus_p, bus_p->ppu, bus_p->rom);
       exit(-1);
    }
    else
@@ -165,8 +171,7 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
          case REGION_HRAM:
             return bus_p->hram[addr - 0xFF80];
          case REGION_IE:
-            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            return bus_p->hram[0x7F];
          default:
             return 0xFF;
       }
@@ -241,16 +246,7 @@ uint8_t bus_read_stat_reg(bus_t           *bus,
                           stat_reg_mask_t  mask)
 {
    uint8_t stat_reg = bus_read(bus, STAT_REG);
-
-   switch(mask)
-   {
-      case STAT_REG_PPU_MODE_MASK:           return (stat_reg & mask);
-      case STAT_REG_LYC_EQ_LY_MASK:          return (stat_reg & mask >> 2);
-      case STAT_REG_MODE_0_INT_CONTRIB_MASK: return (stat_reg & mask >> 3);
-      case STAT_REG_MODE_1_INT_CONTRIB_MASK: return (stat_reg & mask >> 4);
-      case STAT_REG_MODE_2_INT_CONTRIB_MASK: return (stat_reg & mask >> 5);
-      case STAT_REG_LYC_INT_CONTRIB_MASK:    return (stat_reg & mask >> 6);
-   }
+   return stat_reg & mask;
 }
 
 /**

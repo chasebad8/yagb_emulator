@@ -1647,7 +1647,7 @@ static uint8_t op_ldh_c_a(cpu_t *cpu, uint8_t opcode)
 {
    bus_write(cpu->bus, 0xFF00 + cpu->C, cpu->A);
 
-   LOG_OPCODE("LDH [C], A");
+   LOG_OPCODE("LDH [0xFF00 + C], A");
    return 8;
 }
 
@@ -1664,7 +1664,7 @@ static uint8_t op_ldh_i8_a(cpu_t *cpu, uint8_t opcode)
    uint8_t offset = bus_read(cpu->bus, cpu->PC++);
    bus_write(cpu->bus, 0xFF00 + offset, cpu->A);
 
-   LOG_OPCODE("LDH [0x%02X], A", offset);
+   LOG_OPCODE("LDH [0x%02X], A", 0xFF00 + offset);
    return 12;
 }
 
@@ -1680,7 +1680,7 @@ static uint8_t op_ldh_a_c(cpu_t *cpu, uint8_t opcode)
 {
    cpu->A = bus_read(cpu->bus, 0xFF00 + cpu->C);
 
-   LOG_OPCODE("LDH A, [C]");
+   LOG_OPCODE("LDH A, [0xFF00 + C]");
    return 8;
 }
 
@@ -1697,7 +1697,7 @@ static uint8_t op_ldh_a_i8(cpu_t *cpu, uint8_t opcode)
    uint8_t offset = bus_read(cpu->bus, cpu->PC++);
    cpu->A = bus_read(cpu->bus, 0xFF00 + offset);
 
-   LOG_OPCODE("LDH A, [0x%02X]", offset);
+   LOG_OPCODE("LDH A, [0x%02X]", 0xFF00 + offset);
    return 12;
 }
 

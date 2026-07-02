@@ -35,7 +35,7 @@ target_include_directories(yagb_core PUBLIC
 
 #yagb static library definitions
 target_compile_definitions(yagb_core PRIVATE
-   LOG_LEVEL=0
+   LOG_LEVEL=1
    #LOG_OPCODES
    EXIT_ON_BAD_OPCODE
    LOGFILE

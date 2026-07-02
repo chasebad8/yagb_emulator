@@ -104,7 +104,7 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
 
       if (pending & IF_REG_LCD_MASK)
       {
-         LOG_DEBUG("processing vblank interrupt");
+         LOG_DEBUG("processing lcd interrupt");
 
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_LCD_MASK);
          return cpu_call(cpu, 0x0048);
@@ -112,7 +112,7 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
 
       if (pending & IF_REG_TIMER_MASK)
       {
-         LOG_DEBUG("processing vblank interrupt");
+         LOG_DEBUG("processing timer interrupt");
 
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_TIMER_MASK);
          return cpu_call(cpu, 0x0050);
@@ -120,7 +120,7 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
 
       if (pending & IF_REG_SERIAL_MASK)
       {
-         LOG_DEBUG("processing vblank interrupt");
+         LOG_DEBUG("processing serial interrupt");
 
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_SERIAL_MASK);
          return cpu_call(cpu, 0x0058);
@@ -128,7 +128,7 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
 
       if (pending & IF_REG_JOYPAD_MASK)
       {
-         LOG_DEBUG("processing vblank interrupt");
+         LOG_DEBUG("processing joypad interrupt");
 
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_JOYPAD_MASK);
          return cpu_call(cpu, 0x0060);

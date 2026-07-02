@@ -669,6 +669,28 @@ void test_op_bit_shifting(void)
    emulator_unload_game_cartridge(&emu);
 }
 
+void test_op_reti(void)
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   emu.cpu.SP = 0xFFFE;
+   emu.cpu.PC = 0x1234;
+   emu.cpu.IME = 0;
+   emu.rom.rom[0xFFFE] = 0x34;
+   emu.rom.rom[0xFFFF] = 0x12;
+
+   cpu_run_opcode(&emu.cpu, OP_RETI);
+
+   TEST_ASSERT_EQUAL_HEX(0x1234, emu.cpu.PC);
+   TEST_ASSERT_EQUAL_HEX(0x0000, emu.cpu.SP);
+   TEST_ASSERT_EQUAL_HEX(1, emu.cpu.IME);
+
+   emulator_unload_game_cartridge(&emu);
+}
+
 int run_cpu_tests(void)
 {
    UNITY_BEGIN();
@@ -678,6 +700,7 @@ int run_cpu_tests(void)
    RUN_TEST(test_op_artithmetic);
    RUN_TEST(test_op_pc_misc);
    RUN_TEST(test_op_bit_shifting);
+   RUN_TEST(test_op_reti);
 
    return UNITY_END();
 }

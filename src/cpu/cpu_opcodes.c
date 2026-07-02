@@ -802,9 +802,8 @@ static uint8_t op_ccf(cpu_t *cpu, uint8_t opcode)
 static uint8_t op_stop(cpu_t *cpu, uint8_t opcode)
 {
    LOG_INFO("opcode %0X STOP ... exiting", opcode);
-
-   LOG_OPCODE("STOP");
-   return 4;
+   LOG_OPCODE("opcode %0X STOP ... exiting", opcode);
+   exit(1);
 }
 
 /**********************************************************
@@ -1385,6 +1384,27 @@ static uint8_t op_ret(cpu_t *cpu, uint8_t opcode)
    cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
 
    LOG_OPCODE("RET");
+   return 16;
+}
+
+/**
+ * @brief pop the top of the stack and
+ *        place it into PC, then enable interrupts.
+ *
+ * @param cpu
+ * @param opcode
+ *
+ * @return uint8_t
+ */
+static uint8_t op_reti(cpu_t *cpu, uint8_t opcode)
+{
+   uint8_t pop_addr_low  = bus_read(cpu->bus, cpu->SP++);
+   uint8_t pop_addr_high = bus_read(cpu->bus, cpu->SP++);
+
+   cpu->PC = ((pop_addr_high << 8) | (pop_addr_low));
+   cpu->IME = 1;
+
+   LOG_OPCODE("RETI");
    return 16;
 }
 
@@ -2041,6 +2061,15 @@ static const opcode_handler_t opcode_cb_table[OP_MAX] =
 
    op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
    op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
+   op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8, op_cb_set_b3_r8,
 };
 
 /**
@@ -2111,7 +2140,7 @@ static const opcode_handler_t opcode_table[OP_MAX] =
    op_ret_cc,      op_ret,        op_jp_c_i16,  op_cb_prefix, op_call_c_i16, op_call_i16,  op_adc_a_i8,  op_rst_tgt3,
 
    op_ret_cc,      op_pop,        op_jp_c_i16,  INVALID,      op_call_c_i16, op_push,      op_sub_a_i8,  op_rst_tgt3,
-   op_ret_cc,      TODO,          op_jp_c_i16,  INVALID,      op_call_c_i16, INVALID,      op_sbc_a_i8,  op_rst_tgt3,
+   op_ret_cc,      op_reti,       op_jp_c_i16,  INVALID,      op_call_c_i16, INVALID,      op_sbc_a_i8,  op_rst_tgt3,
 
    op_ldh_i8_a,    op_pop,        op_ldh_c_a,   INVALID,      INVALID,       op_push,      op_and_a_i8,  op_rst_tgt3,
    op_add_sp_i8,   op_jp_hl,      op_ld_mi16_a, INVALID,      INVALID,       INVALID,      op_xor_a_i8,  op_rst_tgt3,

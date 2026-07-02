@@ -188,31 +188,8 @@ static void emulator_2bb_to_rgba(emulator_t *emulator)
    }
 }
 
-static void emulator_update_vram_preview(emulator_t *emulator, const uint32_t *pixels)
-{
-   if (vram_texture == NULL)
-   {
-      return;
-   }
-
-   if (pixels != NULL)
-   {
-      for (int i = 0; i < (VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_HEIGHT); i++)
-      {
-         emulator->vram_dump_buffer[i] = pixels[i];
-      }
-   }
-
-   SDL_UpdateTexture(vram_texture,
-                     NULL,
-                     emulator->vram_dump_buffer,
-                     VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
-}
-
 static void emulator_refresh_vram_preview(emulator_t *emulator)
 {
-   uint32_t pixel_arr[VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_HEIGHT] = { 0 };
-
    if (emulator == NULL)
    {
       LOG_ERROR("emulator pointer is NULL");
@@ -220,6 +197,7 @@ static void emulator_refresh_vram_preview(emulator_t *emulator)
    }
    else
    {
+      /* loop through all tiles and generate an 8x8 pixel tile image to display */
       for (uint16_t tile_index = 0; tile_index < 256; tile_index++)
       {
          uint16_t tile_addr = ppu_get_tile_data_addr(&emulator->ppu, tile_index, TILE_SOURCE_BG);
@@ -239,12 +217,15 @@ static void emulator_refresh_vram_preview(emulator_t *emulator)
 
             if (x < VRAM_PREVIEW_WIDTH && y < VRAM_PREVIEW_HEIGHT)
             {
-               pixel_arr[y * VRAM_PREVIEW_WIDTH + x] = emulator_2bb_to_rgba_test(pixel_col);
+               emulator->vram_dump_buffer[y * VRAM_PREVIEW_WIDTH + x] = emulator_2bb_to_rgba_test(pixel_col);
             }
          }
       }
 
-      emulator_update_vram_preview(emulator, pixel_arr);
+      SDL_UpdateTexture(vram_texture,
+                        NULL,
+                        emulator->vram_dump_buffer,
+                        VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
    }
 }
 
@@ -382,7 +363,6 @@ void emulator_run(emulator_t *emulator)
    /* temporary */
    uint8_t   cycle_count       = 0;
    uint8_t   new_scanline_edge = 0;
-   uint8_t   lcd_enabled       = 0;
    SDL_Event event;
 
    while (1)
@@ -391,16 +371,13 @@ void emulator_run(emulator_t *emulator)
       cycle_count += cpu_process_interrupts(&emulator->cpu);
       ppu_step(&emulator->ppu, cycle_count);
 
-      lcd_enabled = bus_read(&emulator->bus, LCDC_REG) & 0x01;
-
       if(bus_read(&emulator->bus, LY_REG) != new_scanline_edge)
       {
-         if (((lcd_enabled = bus_read(&emulator->bus, LCDC_REG) & 0x01) == 0x00) &&
-             (lcd_enabled != bus_read(&emulator->bus, LCDC_REG) & 0x01))
+         if ((bus_read(&emulator->bus, LCDC_REG) & 0x80) >> 7 == 0x00)
          {
             memset(emulator->ppu.frame_buffer, 0x00000000, FRAME_BUFFER_SIZE);
          }
-         else if (lcd_enabled == 0x01)
+         else
          {
             emulator_2bb_to_rgba(emulator);
          }

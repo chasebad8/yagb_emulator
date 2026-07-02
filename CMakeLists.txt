@@ -37,7 +37,7 @@ target_include_directories(yagb_core PUBLIC
 target_compile_definitions(yagb_core PRIVATE
    LOG_LEVEL=1
    #LOG_OPCODES
-   EXIT_ON_BAD_OPCODE
+   #EXIT_ON_BAD_OPCODE
    LOGFILE
 )
 

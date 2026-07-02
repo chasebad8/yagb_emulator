@@ -15,6 +15,7 @@ typedef struct
 } debug_renderer_t;
 
 debug_renderer_t debug;
+debug_renderer_t debug_bold;
 
 void debug_draw_text(SDL_Renderer *renderer,
                      debug_renderer_t *debug,
@@ -28,6 +29,11 @@ void debug_draw_text(SDL_Renderer *renderer,
     y += 16; \
 } while (0)
 
+#define DRAW_BOLD_LINE(fmt, ...) do { \
+    snprintf(line, sizeof(line), fmt, ##__VA_ARGS__); \
+    debug_draw_text(renderer, &debug_bold, 10, y, line); \
+    y += 16; \
+} while (0)
 int y = 10;
 char line[64];
 
@@ -61,7 +67,7 @@ void debug_draw_cpu(SDL_Renderer *renderer, cpu_t *cpu)
     int y = 10;
     char line[128];
 
-    DRAW_LINE("CPU REGISTERS");
+    DRAW_BOLD_LINE("CPU REGISTERS");
 
     DRAW_LINE("PC: 0x%04X  SP: 0x%04X", cpu->PC, cpu->SP);
 
@@ -83,7 +89,7 @@ void debug_draw_io(SDL_Renderer *renderer, io_t *io)
    int y = 200;
    char line[128];
 
-   DRAW_LINE("IO REGISTERS");
+   DRAW_BOLD_LINE("IO REGISTERS");
 
    DRAW_LINE("IF:  %5s 0x%02X", "", io->io_ram[0x0F]);
    DRAW_LINE("LCDC: 0x%02X",        io->io_ram[0x40]);
@@ -263,6 +269,19 @@ void emulator_init(emulator_t *emulator)
       }
 
       debug.color = (SDL_Color)
+      {
+         255, 255, 255, 255
+      };
+
+      debug_bold.font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14);
+
+      if (!debug_bold.font)
+      {
+         LOG_ERROR("Font load failed: %s\n", TTF_GetError());
+         exit(1);
+      }
+
+      debug_bold.color = (SDL_Color)
       {
          255, 255, 255, 255
       };

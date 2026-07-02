@@ -281,14 +281,14 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-   bool     lcdc_enabled  = bus_read(ppu->bus, LCDC_REG) & 0x01;
+   bool     lcd_enabled   = bus_read(ppu->bus, LCDC_REG) & 0x01;
    uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
 
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
-      if(lcdc_enabled == 0x01)
+      if(lcd_enabled == true)
       {
          tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
          tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);

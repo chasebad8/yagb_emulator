@@ -1,18 +1,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#include <signal.h>
 #include "common/logging.h"
 #include "emulator.h"
 
 #if BYTE_ORDER != LITTLE_ENDIAN
 #error "!! this emulator requires a little-endian system !!"
 #endif
+
+void handle_sigint(int sig) {
+   LOG_INFO("SIGINT received, exiting...");
+   //emulator_unload_game_cartridge(&emulator);
+   exit(0);
+}
+
 /**
  * this is the entry point to the program. It will call public emulator functions.
  * effectively it will progress the emulator.
  */
 int main(int argc, char *argv[])
 {
+   signal(SIGINT, handle_sigint);
+
    emulator_t emulator;
 
    LOG_INFO("Welcome to Yet Another GameBoy Emulator!");

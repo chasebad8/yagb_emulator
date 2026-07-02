@@ -45,6 +45,9 @@
    └──────────┘
 */
 
+/* 255 tiles by 8x8 pixels */
+#define VRAM_DEBUG_BUFFER_SIZE 16384
+
 typedef struct
 {
    io_t        io;
@@ -52,6 +55,9 @@ typedef struct
    bus_t       bus;
    ppu_t       ppu;
    cartridge_t rom;
+
+   uint32_t rgb_frame_buffer[FRAME_BUFFER_SIZE];
+   uint32_t vram_dump_buffer[VRAM_DEBUG_BUFFER_SIZE];
 
    /* system tick counter using T-cycles.
       each memory read is 4 T-cycles */
@@ -67,4 +73,5 @@ void emulator_unload_game_cartridge(emulator_t *emulator);
 
 void emulator_run(emulator_t *emulator);
 
+void emulator_shutdown(emulator_t *emulator);
 #endif

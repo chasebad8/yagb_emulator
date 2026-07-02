@@ -80,8 +80,8 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
    }
    else
    {
-      uint8_t if_reg = bus_read(cpu->bus, IF_REG);
-      uint8_t ie_reg = bus_read(cpu->bus, IE_REG);
+      uint8_t if_reg  = bus_read(cpu->bus, IF_REG);
+      uint8_t ie_reg  = bus_read(cpu->bus, IE_REG);
       uint8_t pending = if_reg & ie_reg & 0x1F;
 
       /* no interrupts to service */
@@ -95,6 +95,8 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
 
       if (pending & IF_REG_VBLANK_MASK)
       {
+         LOG_DEBUG("processing vblank interrupt");
+
          /* clear interrupt flag */
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_VBLANK_MASK);
          return cpu_call(cpu, 0x0040);;
@@ -102,24 +104,32 @@ uint8_t cpu_process_interrupts(cpu_t *cpu)
 
       if (pending & IF_REG_LCD_MASK)
       {
+         LOG_DEBUG("processing vblank interrupt");
+
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_LCD_MASK);
          return cpu_call(cpu, 0x0048);
       }
 
       if (pending & IF_REG_TIMER_MASK)
       {
+         LOG_DEBUG("processing vblank interrupt");
+
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_TIMER_MASK);
          return cpu_call(cpu, 0x0050);
       }
 
       if (pending & IF_REG_SERIAL_MASK)
       {
+         LOG_DEBUG("processing vblank interrupt");
+
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_SERIAL_MASK);
          return cpu_call(cpu, 0x0058);
       }
 
       if (pending & IF_REG_JOYPAD_MASK)
       {
+         LOG_DEBUG("processing vblank interrupt");
+
          bus_write(cpu->bus, IF_REG, if_reg & ~IF_REG_JOYPAD_MASK);
          return cpu_call(cpu, 0x0060);
       }

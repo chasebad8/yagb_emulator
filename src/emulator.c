@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -34,35 +35,43 @@ void debug_draw_text(SDL_Renderer *renderer,
     debug_draw_text(renderer, &debug_bold, 10, y, line); \
     y += 16; \
 } while (0)
+
 int y = 10;
 char line[64];
-
 
 SDL_Window   *window;
 SDL_Renderer *renderer;
 SDL_Texture  *texture;
 SDL_Texture  *vram_texture;
 
-static int rgb_frame_buffer[FRAME_BUFFER_SIZE];
-static uint32_t vram_preview_buffer[128 * 128];
-
-pthread_t thread;
-int value = 42;
-
-#define WIDTH 160
-#define HEIGHT 144
-#define DEBUG_COL_WIDTH 240
-#define GAME_SCALE 4
-#define GAME_SCREEN_WIDTH (WIDTH * GAME_SCALE)
-#define GAME_SCREEN_HEIGHT (HEIGHT * GAME_SCALE)
-#define VRAM_PREVIEW_WIDTH 128
-#define VRAM_PREVIEW_HEIGHT 128
-#define VRAM_PREVIEW_SCALE 2
-#define VRAM_VIEWPORT_GAP 20
+#define WIDTH                160
+#define HEIGHT               144
+#define DEBUG_COL_WIDTH      240
+#define GAME_SCALE           4
+#define GAME_SCREEN_WIDTH    (WIDTH  * GAME_SCALE)
+#define GAME_SCREEN_HEIGHT   (HEIGHT * GAME_SCALE)
+#define VRAM_PREVIEW_WIDTH   128
+#define VRAM_PREVIEW_HEIGHT  128
+#define VRAM_PREVIEW_SCALE   2
+#define VRAM_VIEWPORT_GAP    20
 #define WINDOW_WIDTH (DEBUG_COL_WIDTH + GAME_SCREEN_WIDTH + VRAM_VIEWPORT_GAP + (VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_SCALE) + VRAM_VIEWPORT_GAP)
 #define WINDOW_HEIGHT GAME_SCREEN_HEIGHT
 
-void debug_draw_cpu(SDL_Renderer *renderer, cpu_t *cpu)
+/* gameboy screen area */
+SDL_Rect game_rect = { DEBUG_COL_WIDTH,
+                       0,
+                       GAME_SCREEN_WIDTH,
+                       GAME_SCREEN_HEIGHT
+                     };
+
+/* visual vram dump */
+SDL_Rect vram_rect = { DEBUG_COL_WIDTH + GAME_SCREEN_WIDTH + VRAM_VIEWPORT_GAP,
+                       0,
+                       VRAM_PREVIEW_WIDTH  * VRAM_PREVIEW_SCALE,
+                       VRAM_PREVIEW_HEIGHT * VRAM_PREVIEW_SCALE
+                     };
+
+void debug_draw_cpu_dump(SDL_Renderer *renderer, cpu_t *cpu)
 {
     int y = 10;
     char line[128];
@@ -84,7 +93,7 @@ void debug_draw_cpu(SDL_Renderer *renderer, cpu_t *cpu)
     DRAW_LINE("H: 0x%02X L: 0x%02X", cpu->H, cpu->L);
 }
 
-void debug_draw_io(SDL_Renderer *renderer, io_t *io)
+void debug_draw_io_dump(SDL_Renderer *renderer, io_t *io)
 {
    int y = 200;
    char line[128];
@@ -158,24 +167,28 @@ static void emulator_2bb_to_rgba(emulator_t *emulator)
    {
       if (emulator->ppu.frame_buffer[pixel_index] == 0b00)
       {
-         rgb_frame_buffer[pixel_index] = 0x8cad28;
+         emulator->rgb_frame_buffer[pixel_index] = 0x8cad28;
       }
       else if (emulator->ppu.frame_buffer[pixel_index] == 0b01)
       {
-         rgb_frame_buffer[pixel_index] = 0x6c9421;
+         emulator->rgb_frame_buffer[pixel_index] = 0x6c9421;
       }
       else if (emulator->ppu.frame_buffer[pixel_index] == 0b10)
       {
-         rgb_frame_buffer[pixel_index] = 0x426b29;
+         emulator->rgb_frame_buffer[pixel_index] = 0x426b29;
       }
       else if (emulator->ppu.frame_buffer[pixel_index] == 0b11)
       {
-         rgb_frame_buffer[pixel_index] = 0x214231;
+         emulator->rgb_frame_buffer[pixel_index] = 0x214231;
+      }
+      else if (emulator->ppu.frame_buffer[pixel_index] == 0b100)
+      {
+         emulator->rgb_frame_buffer[pixel_index] = 0x000000;
       }
    }
 }
 
-static void emulator_update_vram_preview(const uint32_t *pixels)
+static void emulator_update_vram_preview(emulator_t *emulator, const uint32_t *pixels)
 {
    if (vram_texture == NULL)
    {
@@ -186,50 +199,53 @@ static void emulator_update_vram_preview(const uint32_t *pixels)
    {
       for (int i = 0; i < (VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_HEIGHT); i++)
       {
-         vram_preview_buffer[i] = pixels[i];
+         emulator->vram_dump_buffer[i] = pixels[i];
       }
    }
 
    SDL_UpdateTexture(vram_texture,
                      NULL,
-                     vram_preview_buffer,
+                     emulator->vram_dump_buffer,
                      VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
 }
 
 static void emulator_refresh_vram_preview(emulator_t *emulator)
 {
-   if (emulator == NULL)
-   {
-      return;
-   }
-
    uint32_t pixel_arr[VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_HEIGHT] = { 0 };
 
-   for (uint16_t tile_index = 0; tile_index < 256; tile_index++)
+   if (emulator == NULL)
    {
-      uint16_t tile_addr = ppu_get_tile_data_addr(&emulator->ppu, tile_index, TILE_SOURCE_BG);
-
-      for (uint8_t pixel = 0; pixel < 64; pixel++)
+      LOG_ERROR("emulator pointer is NULL");
+      exit(-1);
+   }
+   else
+   {
+      for (uint16_t tile_index = 0; tile_index < 256; tile_index++)
       {
-         uint8_t tile_x = tile_index % 16;
-         uint8_t tile_y = tile_index / 16;
+         uint16_t tile_addr = ppu_get_tile_data_addr(&emulator->ppu, tile_index, TILE_SOURCE_BG);
 
-         uint8_t px = pixel % 8;
-         uint8_t py = pixel / 8;
-
-         uint8_t x = tile_x * 8 + px;
-         uint8_t y = tile_y * 8 + py;
-
-         uint8_t pixel_col = ppu_get_tile_pixel_color_id(&emulator->ppu, tile_addr + ((pixel / 8) * 2), pixel);
-
-         if (x < VRAM_PREVIEW_WIDTH && y < VRAM_PREVIEW_HEIGHT)
+         for (uint8_t pixel = 0; pixel < 64; pixel++)
          {
-            pixel_arr[y * VRAM_PREVIEW_WIDTH + x] = emulator_2bb_to_rgba_test(pixel_col);
+            uint8_t tile_x = tile_index % 16;
+            uint8_t tile_y = tile_index / 16;
+
+            uint8_t px = pixel % 8;
+            uint8_t py = pixel / 8;
+
+            uint8_t x = tile_x * 8 + px;
+            uint8_t y = tile_y * 8 + py;
+
+            uint8_t pixel_col = ppu_get_tile_pixel_color_id(&emulator->ppu, tile_addr + ((pixel / 8) * 2), pixel);
+
+            if (x < VRAM_PREVIEW_WIDTH && y < VRAM_PREVIEW_HEIGHT)
+            {
+               pixel_arr[y * VRAM_PREVIEW_WIDTH + x] = emulator_2bb_to_rgba_test(pixel_col);
+            }
          }
       }
-   }
 
-   emulator_update_vram_preview(pixel_arr);
+      emulator_update_vram_preview(emulator, pixel_arr);
+   }
 }
 
 /* an emulator instance will be created for 1 emulator. Technically we can support multiple emulators at once. */
@@ -286,13 +302,6 @@ void emulator_init(emulator_t *emulator)
          255, 255, 255, 255
       };
 
-#if 0
-      if (pthread_create(&thread, NULL, vram_display, emulator) != 0)
-      {
-         LOG_ERROR("pthread_create failed");
-      }
-#endif
-
 #ifndef DEBUG_MODE
       SDL_Init(SDL_INIT_VIDEO);
 
@@ -324,7 +333,7 @@ void emulator_init(emulator_t *emulator)
          VRAM_PREVIEW_HEIGHT);
 
       SDL_UpdateTexture(texture, NULL, emulator->ppu.frame_buffer, WIDTH * sizeof(uint32_t));
-      SDL_UpdateTexture(vram_texture, NULL, vram_preview_buffer, VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
+      SDL_UpdateTexture(vram_texture, NULL, emulator->vram_dump_buffer, VRAM_PREVIEW_WIDTH * sizeof(uint32_t));
 
       SDL_RenderClear(renderer);
 
@@ -371,60 +380,88 @@ void emulator_unload_game_cartridge(emulator_t *emulator)
 void emulator_run(emulator_t *emulator)
 {
    /* temporary */
-   uint8_t cycle_count = 0;
-
-   static uint8_t curr = 0;
-
-   emulator_2bb_to_rgba(emulator);
-   emulator_refresh_vram_preview(emulator);
-
-   SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, WIDTH * sizeof(uint32_t));
-
-   SDL_RenderClear(renderer);
-   SDL_RenderCopy(renderer, texture, NULL, NULL);
-   SDL_RenderPresent(renderer);
+   uint8_t   cycle_count       = 0;
+   uint8_t   new_scanline_edge = 0;
+   uint8_t   lcd_enabled       = 0;
+   SDL_Event event;
 
    while (1)
    {
       cycle_count  = cpu_step(&emulator->cpu);
       cycle_count += cpu_process_interrupts(&emulator->cpu);
-
       ppu_step(&emulator->ppu, cycle_count);
 
-      //SDL_Delay(100);
-      if(bus_read(&emulator->bus, LY_REG) != curr)
+      lcd_enabled = bus_read(&emulator->bus, LCDC_REG) & 0x01;
+
+      if(bus_read(&emulator->bus, LY_REG) != new_scanline_edge)
       {
-         emulator_2bb_to_rgba(emulator);
+         if (((lcd_enabled = bus_read(&emulator->bus, LCDC_REG) & 0x01) == 0x00) &&
+             (lcd_enabled != bus_read(&emulator->bus, LCDC_REG) & 0x01))
+         {
+            memset(emulator->ppu.frame_buffer, 0x00000000, FRAME_BUFFER_SIZE);
+         }
+         else if (lcd_enabled == 0x01)
+         {
+            emulator_2bb_to_rgba(emulator);
+         }
+
          emulator_refresh_vram_preview(emulator);
 
 #ifndef DEBUG_MODE
-         /* cpu_process_interrupts(); */
-         SDL_UpdateTexture(texture, NULL, rgb_frame_buffer, WIDTH * sizeof(uint32_t));
-
+         SDL_UpdateTexture(texture, NULL, emulator->rgb_frame_buffer, WIDTH * sizeof(uint32_t));
          SDL_RenderClear(renderer);
 
-         SDL_Rect game_rect = { DEBUG_COL_WIDTH, 0, GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT };
-         SDL_Rect vram_rect = { DEBUG_COL_WIDTH + GAME_SCREEN_WIDTH + VRAM_VIEWPORT_GAP, 0, VRAM_PREVIEW_WIDTH * VRAM_PREVIEW_SCALE, VRAM_PREVIEW_HEIGHT * VRAM_PREVIEW_SCALE };
          SDL_RenderCopy(renderer, texture, NULL, &game_rect);
          SDL_RenderCopy(renderer, vram_texture, NULL, &vram_rect);
-         debug_draw_cpu(renderer, &emulator->cpu);
-         debug_draw_io(renderer, &emulator->io);
+
+         debug_draw_cpu_dump(renderer, &emulator->cpu);
+         debug_draw_io_dump(renderer, &emulator->io);
 
          SDL_RenderPresent(renderer);
-         //SDL_Delay(10);
-
+         //SDL_Delay(500);
 #endif
-         curr = bus_read(&emulator->bus, LY_REG);
-         // if(wait == 0)
-         // {
-         //    SDL_Delay(50);
-         //    wait = 1;
-         // }
-         // }
-         // else
-         // {
-         //    wait = 0;
-         // }
+         new_scanline_edge = bus_read(&emulator->bus, LY_REG);
       }
+
+      /* check if user wants to quit */
+      while (SDL_PollEvent(&event))
+      {
+         if (event.type == SDL_QUIT)
+         {
+            LOG_INFO("SDL_QUIT received, exiting...");
+            emulator_shutdown(emulator);
+            exit(0);
+         }
+      }
+   }
+}
+
+/**
+ * @brief
+ *
+ * @param emulator
+ */
+void emulator_shutdown(emulator_t *emulator)
+{
+   if(emulator == NULL)
+   {
+      LOG_ERROR("emulator pointer is NULL");
+      exit(-1);
+   }
+   else
+   {
+      cartridge_unload(&emulator->rom);
+
+      TTF_CloseFont(debug.font);
+      TTF_CloseFont(debug_bold.font);
+      TTF_Quit();
+
+      SDL_DestroyTexture(texture);
+      SDL_DestroyTexture(vram_texture);
+      SDL_DestroyRenderer(renderer);
+      SDL_DestroyWindow(window);
+      SDL_Quit();
+
+      LOG_INFO("successfully shutdown emulator instance");
    }
 }

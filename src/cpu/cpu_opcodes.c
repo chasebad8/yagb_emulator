@@ -2054,6 +2054,13 @@ static const opcode_handler_t opcode_cb_table[OP_MAX] =
 uint8_t op_cb_prefix(cpu_t *cpu, uint8_t opcode)
 {
    uint8_t cb_opcode = bus_read(cpu->bus, cpu->PC++);
+
+   if(cb_opcode >= OP_MAX)
+   {
+      LOG_ERROR("invalid CB opcode: 0x%02X", cb_opcode);
+      exit(-1);
+   }
+
    return opcode_cb_table[cb_opcode](cpu, cb_opcode);
 }
 
@@ -2123,5 +2130,5 @@ static const opcode_handler_t opcode_table[OP_MAX] =
  */
 uint8_t cpu_run_opcode(cpu_t* cpu, uint8_t opcode)
 {
-   opcode_table[opcode](cpu, opcode);
+   return opcode_table[opcode](cpu, opcode);
 }

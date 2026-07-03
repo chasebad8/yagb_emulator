@@ -19,7 +19,7 @@
 #define LCDC_REG_BG_TILE_MAP_SHIFT      (3)
 #define LCDC_REG_OBJ_SIZE_SHIFT         (2)
 #define LCDC_REG_OBJ_ENABLE_SHIFT       (1)
-#define LCDC_REG_BG_ENABLE_SHIFT        (0)
+#define LCDC_REG_WIN_BG_ENABLE_SHIFT    (0)
 
 #define LCDC_REG_LCD_ENABLE_MASK        (0x80)
 #define LCDC_REG_WINDOW_TILE_MAP_MASK   (0x40)
@@ -28,7 +28,7 @@
 #define LCDC_REG_BG_TILE_MAP_MASK       (0x08)
 #define LCDC_REG_OBJ_SIZE_MASK          (0x04)
 #define LCDC_REG_OBJ_ENABLE_MASK        (0x02)
-#define LCDC_REG_BG_ENABLE_MASK         (0x01)
+#define LCDC_REG_WIN_BG_ENABLE_MASK     (0x01)
 
 /* IF register fields */
 #define IF_REG_VBLANK_SHIFT         (0)

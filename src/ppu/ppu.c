@@ -39,6 +39,16 @@
 #define PPU_IS_NEW_FRAME(scanlines) ((scanlines) == 0)
 #define PPU_LY_EQUALS_LYC(ly, lyc) ((ly) == (lyc))
 
+/** Base addresses for tile maps (32x32 indices) */
+#define PPU_TILE_MAP_0_BASE_ADDR (0x9800)
+#define PPU_TILE_MAP_1_BASE_ADDR (0x9C00)
+
+/** Base addresses for background tile data (8x8 pixel tile addresses) */
+#define PPU_TILE_DATA_0_BASE_ADDR (0x8000)
+#define PPU_TILE_DATA_1_BASE_ADDR (0x9000)
+
+#define PPU_BYTES_PER_TILE (16)
+
 typedef struct
 {
    uint8_t y_pos;
@@ -108,16 +118,17 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
                                   uint8_t y_coord,
                                   enum tile_source_e tile_source)
 {
-   bool tile_map_mode =
-      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_BG_TILE_MAP_MASK) >> LCDC_REG_BG_TILE_MAP_SHIFT);
-   uint16_t tile_map_addr_offset = (tile_map_mode == true) ? 0x9C00 : 0x9800;
+   bool tile_map_mode = (tile_source == TILE_SOURCE_BG) ?
+      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_BG_TILE_MAP_MASK)     >> LCDC_REG_BG_TILE_MAP_SHIFT) :
+      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_WINDOW_TILE_MAP_MASK) >> LCDC_REG_WINDOW_TILE_MAP_SHIFT);
 
+   uint16_t tile_map_addr_offset = (tile_map_mode == true) ? PPU_TILE_MAP_1_BASE_ADDR : PPU_TILE_MAP_0_BASE_ADDR;
    uint16_t y_coord_w_offset = 0;
    uint16_t x_coord_w_offset = 0;
 
    if (tile_source == TILE_SOURCE_WINDOW)
    {
-      /* TODO */;
+
    }
    else if (tile_source == TILE_SOURCE_BG)
    {
@@ -160,19 +171,20 @@ uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
    {
       switch(tile_source)
       {
+         /* sprites always use 0x8000 address map */
          case TILE_SOURCE_SPRITE:
-            tile_addr = 0x8000 + tile_index * 16;
+            tile_addr = PPU_TILE_DATA_0_BASE_ADDR + (tile_index * PPU_BYTES_PER_TILE);
             break;
 
          case TILE_SOURCE_BG:
          case TILE_SOURCE_WINDOW:
             if(tile_data_mode == 1)
             {
-               tile_addr = 0x9000 + ((int8_t)tile_index * 16);
+               tile_addr = PPU_TILE_DATA_1_BASE_ADDR + ((int8_t)tile_index * PPU_BYTES_PER_TILE);
             }
             else
             {
-               tile_addr = 0x8000 + tile_index * 16;
+               tile_addr = PPU_TILE_DATA_0_BASE_ADDR + (tile_index * PPU_BYTES_PER_TILE);
             }
             break;
       }
@@ -296,11 +308,24 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
-      tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
-      tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
+      if (bus_read_lcdc_reg(ppu->bus, LCDC_REG_WIN_BG_ENABLE_MASK) >> LCDC_REG_WIN_BG_ENABLE_SHIFT == true)
+      {
+         /* TODO this currently breaks stuff. move background out of if statement to fix */
+         /* window */
+         if (bus_read_lcdc_reg(ppu->bus, LCDC_REG_WINDOW_ENABLE_MASK) >> LCDC_REG_WINDOW_ENABLE_SHIFT == true)
+         {
+            tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_WINDOW);
+            tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_WINDOW) + ((curr_scanline % 8) * 2);
+         }
+         else /* background */
+         {
+            tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
+            tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
+         }
 
-      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] =
-         ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+         ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] =
+            ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+      }
    }
 }
 
@@ -327,22 +352,22 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    /* for fun init all vram tiles to the same image */
    for(uint16_t mult = 0; mult < 255; mult ++)
    {
-      ppu_p->vram[0x8000 + (mult*16) - 0x8000] = 0xFF;
-      ppu_p->vram[0x8001 + (mult*16) - 0x8000] = 0x00;
-      ppu_p->vram[0x8002 + (mult*16) - 0x8000] = 0x7E;
-      ppu_p->vram[0x8003 + (mult*16) - 0x8000] = 0xFF;
-      ppu_p->vram[0x8004 + (mult*16) - 0x8000] = 0x85;
-      ppu_p->vram[0x8005 + (mult*16) - 0x8000] = 0x81;
-      ppu_p->vram[0x8006 + (mult*16) - 0x8000] = 0x89;
-      ppu_p->vram[0x8007 + (mult*16) - 0x8000] = 0x83;
-      ppu_p->vram[0x8008 + (mult*16) - 0x8000] = 0x93;
-      ppu_p->vram[0x8009 + (mult*16) - 0x8000] = 0x85;
-      ppu_p->vram[0x800A + (mult*16) - 0x8000] = 0xA5;
-      ppu_p->vram[0x800B + (mult*16) - 0x8000] = 0x8B;
-      ppu_p->vram[0x800C + (mult*16) - 0x8000] = 0xC9;
-      ppu_p->vram[0x800D + (mult*16) - 0x8000] = 0x97;
-      ppu_p->vram[0x800E + (mult*16) - 0x8000] = 0x7E;
-      ppu_p->vram[0x800F + (mult*16) - 0x8000] = 0xFF;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR]      = 0xFF;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 1]  = 0x00;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 2]  = 0x7E;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 3]  = 0xFF;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 4]  = 0x85;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 5]  = 0x81;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 6]  = 0x89;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 7]  = 0x83;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 8]  = 0x93;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 9]  = 0x85;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 10] = 0xA5;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 11] = 0x8B;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 12] = 0xC9;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 13] = 0x97;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 14] = 0x7E;
+      ppu_p->vram[PPU_TILE_DATA_0_BASE_ADDR + (mult * PPU_BYTES_PER_TILE) - PPU_TILE_DATA_0_BASE_ADDR + 15] = 0xFF;
    }
 
    LOG_DEBUG("ppu init success!");

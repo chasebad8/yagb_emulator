@@ -7,7 +7,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 find_package(SDL2 REQUIRED)
 find_package(SDL2_ttf REQUIRED)
-find_package(Threads REQUIRED)
 
 set(YAGB_SOURCES
    src/emulator.c
@@ -54,7 +53,6 @@ target_link_libraries(yagb PRIVATE
    yagb_core
    SDL2::SDL2
    SDL2_ttf::SDL2_ttf
-   Threads::Threads
 )
 
 target_compile_options(yagb PRIVATE
@@ -96,7 +94,6 @@ target_link_libraries(test_all PRIVATE
    yagb_core_test
    SDL2::SDL2
    SDL2_ttf::SDL2_ttf
-   Threads::Threads
 )
 
 add_test(NAME all_tests COMMAND test_all)

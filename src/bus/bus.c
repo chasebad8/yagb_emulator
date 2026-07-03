@@ -230,9 +230,28 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
    }
 }
 
-void bus_write_stat_reg(bus_t           *bus,
-                        stat_reg_mask_t  mask,
-                        uint8_t          value)
+void bus_write_lcdc_reg(bus_t   *bus,
+                        uint8_t  mask,
+                        uint8_t  value)
+{
+   uint8_t lcdc_reg = bus_read(bus, LCDC_REG);
+
+   lcdc_reg &= ~mask;
+   lcdc_reg |= value & mask;
+
+   bus_write(bus, LCDC_REG, lcdc_reg);
+}
+
+uint8_t bus_read_lcdc_reg(bus_t  *bus,
+                          uint8_t mask)
+{
+   uint8_t lcdc_reg = bus_read(bus, LCDC_REG);
+   return lcdc_reg & mask;
+}
+
+void bus_write_stat_reg(bus_t  *bus,
+                        uint8_t mask,
+                        uint8_t value)
 {
    uint8_t stat_reg = bus_read(bus, STAT_REG);
 
@@ -242,8 +261,8 @@ void bus_write_stat_reg(bus_t           *bus,
    bus_write(bus, STAT_REG, stat_reg);
 }
 
-uint8_t bus_read_stat_reg(bus_t           *bus,
-                          stat_reg_mask_t  mask)
+uint8_t bus_read_stat_reg(bus_t  *bus,
+                          uint8_t mask)
 {
    uint8_t stat_reg = bus_read(bus, STAT_REG);
    return stat_reg & mask;
@@ -255,9 +274,9 @@ uint8_t bus_read_stat_reg(bus_t           *bus,
  *        is set in LCD STAT reg before raising.
  *
  */
-void bus_request_interrupt(bus_t          *bus,
-                           if_reg_mask_t   interrupt_mask,
-                           stat_reg_mask_t lcd_interrupt_contrib_mask)
+void bus_request_interrupt(bus_t   *bus,
+                           uint8_t interrupt_mask,
+                           uint8_t lcd_interrupt_contrib_mask)
 {
    if ((interrupt_mask == IF_REG_LCD_MASK) &&
        ((bus_read(bus, STAT_REG) & lcd_interrupt_contrib_mask) == 0))

@@ -372,7 +372,7 @@ void emulator_run(emulator_t *emulator)
 
       if(bus_read(&emulator->bus, LY_REG) != new_scanline_edge)
       {
-         if ((bus_read(&emulator->bus, LCDC_REG) & 0x80) >> 7 == 0x00)
+         if ((bus_read_lcdc_reg(&emulator->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT) == 0x00)
          {
             memset(emulator->ppu.frame_buffer, 0x00000000, FRAME_BUFFER_SIZE);
          }

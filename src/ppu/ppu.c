@@ -108,7 +108,8 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
                                   uint8_t y_coord,
                                   enum tile_source_e tile_source)
 {
-   bool     tile_map_mode        = (bus_read(ppu->bus, LCDC_REG) & 0x8) >> 3;
+   bool tile_map_mode =
+      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_BG_TILE_MAP_MASK) >> LCDC_REG_BG_TILE_MAP_SHIFT);
    uint16_t tile_map_addr_offset = (tile_map_mode == true) ? 0x9C00 : 0x9800;
 
    uint16_t y_coord_w_offset = 0;
@@ -146,7 +147,8 @@ uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
                                        uint8_t            tile_index,
                                        enum tile_source_e tile_source)
 {
-   uint8_t tile_data_mode = (bus_read(ppu->bus, LCDC_REG) & 0x10) >> 4;
+   uint8_t tile_data_mode =
+      bus_read_lcdc_reg(ppu->bus, LCDC_REG_TILE_DATA_MASK) >> LCDC_REG_TILE_DATA_SHIFT;
 
    uint16_t tile_addr = 0;
 
@@ -212,7 +214,7 @@ static sprite_attr_t ppu_get_sprite_attr(ppu_t *ppu, uint8_t sprite_index)
 static bool ppu_is_sprite_on_scanline(ppu_t *ppu, uint8_t sprite_y_pos)
 {
    uint8_t curr_scanline  = bus_read(ppu->bus, LY_REG);
-   bool    sprite_is_tall = (bus_read(ppu->bus, LCDC_REG) & 0x4) >> 2;
+   bool    sprite_is_tall = bus_read_lcdc_reg(ppu->bus, LCDC_REG_OBJ_SIZE_MASK) >> LCDC_REG_OBJ_SIZE_SHIFT;
    uint8_t sprite_height  = ((sprite_is_tall == true) ? 16 : 8);
 
    if ((curr_scanline >= sprite_y_pos) && (curr_scanline < (sprite_y_pos + sprite_height)))
@@ -281,21 +283,24 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-   bool     lcd_enabled   = bus_read(ppu->bus, LCDC_REG) & 0x01;
+   bool lcd_enabled =
+      bus_read_lcdc_reg(ppu->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT;
    uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
 
+   if(lcd_enabled == false)
+   {
+      return;
+   }
+
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
-      if(lcd_enabled == true)
-      {
-         tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
-         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
+      tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
+      tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
 
-         ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
-         //ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] = colour_palette[rand() % 4];
-      }
+      ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] =
+         ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
    }
 }
 
@@ -373,11 +378,11 @@ static void ppu_update_state_machine(ppu_t *ppu)
          ppu->lyc_triggered = true;
       }
 
-      bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, true);
+      bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, 1 << STAT_REG_LYC_EQ_LY_SHIFT);
    }
    else
    {
-      bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, false);
+      bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, 0 << STAT_REG_LYC_EQ_LY_SHIFT);
       ppu->lyc_triggered = false;
    }
 
@@ -413,7 +418,7 @@ static void ppu_update_state_machine(ppu_t *ppu)
    if(new_state != ppu->state)
    {
       ppu->state = new_state;
-      bus_write_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK, new_state);
+      bus_write_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK, new_state << STAT_REG_PPU_MODE_SHIFT);
 
       switch(ppu->state)
       {

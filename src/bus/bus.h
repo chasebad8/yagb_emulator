@@ -11,34 +11,50 @@
 /* 127 B hram max */
 #define HRAM_SIZE 0x80
 
-/**
- * @brief interrupt flag masks
- *
- */
-typedef enum
-{
-   IF_REG_VBLANK_MASK = 0x01,
-   IF_REG_LCD_MASK    = 0x02,
-   IF_REG_TIMER_MASK  = 0x04,
-   IF_REG_SERIAL_MASK = 0x08,
-   IF_REG_JOYPAD_MASK = 0x10
+/* LCDC register fields */
+#define LCDC_REG_LCD_ENABLE_SHIFT       (7)
+#define LCDC_REG_WINDOW_TILE_MAP_SHIFT  (6)
+#define LCDC_REG_WINDOW_ENABLE_SHIFT    (5)
+#define LCDC_REG_TILE_DATA_SHIFT        (4)
+#define LCDC_REG_BG_TILE_MAP_SHIFT      (3)
+#define LCDC_REG_OBJ_SIZE_SHIFT         (2)
+#define LCDC_REG_OBJ_ENABLE_SHIFT       (1)
+#define LCDC_REG_BG_ENABLE_SHIFT        (0)
 
-} if_reg_mask_t;
+#define LCDC_REG_LCD_ENABLE_MASK        (0x80)
+#define LCDC_REG_WINDOW_TILE_MAP_MASK   (0x40)
+#define LCDC_REG_WINDOW_ENABLE_MASK     (0x20)
+#define LCDC_REG_TILE_DATA_MASK         (0x10)
+#define LCDC_REG_BG_TILE_MAP_MASK       (0x08)
+#define LCDC_REG_OBJ_SIZE_MASK          (0x04)
+#define LCDC_REG_OBJ_ENABLE_MASK        (0x02)
+#define LCDC_REG_BG_ENABLE_MASK         (0x01)
 
-/**
- * @brief LCD Status register interrupt configuration
- *
- */
-typedef enum
-{
-   STAT_REG_PPU_MODE_MASK           = 0x03,
-   STAT_REG_LYC_EQ_LY_MASK          = 0x04,
-   STAT_REG_MODE_0_INT_CONTRIB_MASK = 0x08,
-   STAT_REG_MODE_1_INT_CONTRIB_MASK = 0x10,
-   STAT_REG_MODE_2_INT_CONTRIB_MASK = 0x20,
-   STAT_REG_LYC_INT_CONTRIB_MASK    = 0x40
+/* IF register fields */
+#define IF_REG_VBLANK_SHIFT         (0)
+#define IF_REG_LCD_SHIFT            (1)
+#define IF_REG_TIMER_SHIFT          (2)
+#define IF_REG_SERIAL_SHIFT         (3)
+#define IF_REG_JOYPAD_SHIFT         (4)
+#define IF_REG_VBLANK_MASK          (0x01)
+#define IF_REG_LCD_MASK             (0x02)
+#define IF_REG_TIMER_MASK           (0x04)
+#define IF_REG_SERIAL_MASK          (0x08)
+#define IF_REG_JOYPAD_MASK          (0x10)
 
-} stat_reg_mask_t;
+/* STAT register fields */
+#define STAT_REG_PPU_MODE_SHIFT            (0)
+#define STAT_REG_LYC_EQ_LY_SHIFT           (2)
+#define STAT_REG_MODE_0_INT_CONTRIB_SHIFT  (3)
+#define STAT_REG_MODE_1_INT_CONTRIB_SHIFT  (4)
+#define STAT_REG_MODE_2_INT_CONTRIB_SHIFT  (5)
+#define STAT_REG_LYC_INT_CONTRIB_SHIFT     (6)
+#define STAT_REG_PPU_MODE_MASK             (0x03)
+#define STAT_REG_LYC_EQ_LY_MASK            (0x04)
+#define STAT_REG_MODE_0_INT_CONTRIB_MASK   (0x08)
+#define STAT_REG_MODE_1_INT_CONTRIB_MASK   (0x10)
+#define STAT_REG_MODE_2_INT_CONTRIB_MASK   (0x20)
+#define STAT_REG_LYC_INT_CONTRIB_MASK      (0x40)
 
 /**
  * @brief register names for io ram
@@ -152,14 +168,22 @@ void bus_write(bus_t    *bus_p,
 uint8_t bus_read(bus_t    *bus_p,
                  uint16_t  addr);
 
-void bus_request_interrupt(bus_t          *bus,
-                           if_reg_mask_t   interrupt_mask,
-                           stat_reg_mask_t lcd_interrupt_contrib_mask);
+void bus_request_interrupt(bus_t   *bus,
+                           uint8_t interrupt_mask,
+                           uint8_t lcd_interrupt_contrib_mask);
 
-void bus_write_stat_reg(bus_t           *bus,
-                        stat_reg_mask_t  mask,
-                        uint8_t          value);
+void bus_write_stat_reg(bus_t  *bus,
+                        uint8_t mask,
+                        uint8_t value);
 
-uint8_t bus_read_stat_reg(bus_t           *bus,
-                          stat_reg_mask_t  mask);
+uint8_t bus_read_stat_reg(bus_t  *bus,
+                          uint8_t mask);
+
+void bus_write_lcdc_reg(bus_t   *bus,
+                        uint8_t  mask,
+                        uint8_t  value);
+
+uint8_t bus_read_lcdc_reg(bus_t  *bus,
+                          uint8_t mask);
+
 #endif

@@ -106,6 +106,8 @@ void debug_draw_io_dump(SDL_Renderer *renderer, io_t *io)
    DRAW_LINE("SCX: %2s 0x%02X", "", io->io_ram[0x43]);
    DRAW_LINE("LY:  %4s 0x%02X", "", io->io_ram[0x44]);
    DRAW_LINE("LYC: %2s 0x%02X", "", io->io_ram[0x45]);
+   DRAW_LINE("WY:  %4s 0x%02X", "", io->io_ram[0x4A]);
+   DRAW_LINE("WX:  %4s 0x%02X", "", io->io_ram[0x4B]);
 }
 
 void debug_draw_text(SDL_Renderer *renderer,

@@ -118,31 +118,14 @@ uint8_t ppu_get_tile_index(ppu_t *ppu,
                                   uint8_t y_coord,
                                   enum tile_source_e tile_source)
 {
-   bool tile_map_mode = (tile_source == TILE_SOURCE_BG) ?
+   uint8_t tile_map_mode = (tile_source == TILE_SOURCE_BG) ?
       (bus_read_lcdc_reg(ppu->bus, LCDC_REG_BG_TILE_MAP_MASK)     >> LCDC_REG_BG_TILE_MAP_SHIFT) :
       (bus_read_lcdc_reg(ppu->bus, LCDC_REG_WINDOW_TILE_MAP_MASK) >> LCDC_REG_WINDOW_TILE_MAP_SHIFT);
 
-   uint16_t tile_map_addr_offset = (tile_map_mode == true) ? PPU_TILE_MAP_1_BASE_ADDR : PPU_TILE_MAP_0_BASE_ADDR;
-   uint16_t y_coord_w_offset = 0;
-   uint16_t x_coord_w_offset = 0;
+   uint16_t tile_map_addr_offset = (tile_map_mode == 1) ? PPU_TILE_MAP_1_BASE_ADDR :
+                                                          PPU_TILE_MAP_0_BASE_ADDR;
 
-   if (tile_source == TILE_SOURCE_WINDOW)
-   {
-
-   }
-   else if (tile_source == TILE_SOURCE_BG)
-   {
-      y_coord_w_offset = (uint16_t)y_coord + bus_read(ppu->bus, SCY_REG);
-      x_coord_w_offset = (uint16_t)x_coord + bus_read(ppu->bus, SCX_REG);
-   }
-
-   /* wrap scroll coordinates and tilemap offsets as the DMG does */
-   y_coord_w_offset = (y_coord_w_offset / 8) & 0x1F;
-   x_coord_w_offset = (x_coord_w_offset / 8) & 0x1F;
-
-   uint16_t tile_addr = tile_map_addr_offset + (y_coord_w_offset * 32) + x_coord_w_offset;
-
-   return bus_read(ppu->bus, tile_addr);
+   return bus_read(ppu->bus, tile_map_addr_offset + (y_coord * 32) + x_coord);
 }
 
 /**
@@ -295,11 +278,17 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
  */
 static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 {
-   bool lcd_enabled =
-      bus_read_lcdc_reg(ppu->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT;
    uint8_t  curr_scanline = bus_read(ppu->bus, LY_REG);
    uint8_t  tile_index    = 0;
    uint16_t tile_addr     = 0;
+   uint8_t  x_coord       = 0;
+   uint8_t  y_coord       = 0;
+
+   bool lcd_enabled =
+      bus_read_lcdc_reg(ppu->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT;
+   bool is_win_bg_enabled = false;
+   bool is_window_enabled = false;
+   enum tile_source_e tile_source = TILE_SOURCE_BG;
 
    if(lcd_enabled == false)
    {
@@ -308,22 +297,39 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
-      if (bus_read_lcdc_reg(ppu->bus, LCDC_REG_WIN_BG_ENABLE_MASK) >> LCDC_REG_WIN_BG_ENABLE_SHIFT == true)
+      is_win_bg_enabled =
+         bus_read_lcdc_reg(ppu->bus, LCDC_REG_WIN_BG_ENABLE_MASK) >> LCDC_REG_WIN_BG_ENABLE_SHIFT;
+      is_window_enabled =
+         bus_read_lcdc_reg(ppu->bus, LCDC_REG_WINDOW_ENABLE_MASK) >> LCDC_REG_WINDOW_ENABLE_SHIFT;
+
+      tile_source = (is_window_enabled == true) ? TILE_SOURCE_WINDOW : TILE_SOURCE_BG;
+
+      if (is_win_bg_enabled == true)
       {
-         /* TODO this currently breaks stuff. move background out of if statement to fix */
          /* window */
-         if (bus_read_lcdc_reg(ppu->bus, LCDC_REG_WINDOW_ENABLE_MASK) >> LCDC_REG_WINDOW_ENABLE_SHIFT == true)
+         if ((is_window_enabled == true) &&
+             (curr_scanline >= bus_read(ppu->bus, WY_REG)) &&
+             (pixel_index   >= bus_read(ppu->bus, WX_REG) - 7))
          {
-            tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_WINDOW);
-            tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_WINDOW) + ((curr_scanline % 8) * 2);
+            x_coord = pixel_index - (bus_read(ppu->bus, WX_REG) - 7);
+            y_coord = curr_scanline;
          }
          else /* background */
          {
-            tile_index = ppu_get_tile_index(ppu, pixel_index, curr_scanline, TILE_SOURCE_BG);
-            tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, TILE_SOURCE_BG) + ((curr_scanline % 8) * 2);
+            x_coord = pixel_index   + bus_read(ppu->bus, SCX_REG);
+            y_coord = curr_scanline + bus_read(ppu->bus, SCY_REG);
          }
 
-         ppu->frame_buffer[PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline + pixel_index] =
+         /* the &0x1F is the same as %32 */
+         x_coord = (x_coord / 8) & 0x1F;
+         y_coord = (y_coord / 8) & 0x1F;
+
+         /* setting this to windows mode for some reason breifly shows the right thing */
+         tile_index = ppu_get_tile_index(ppu, x_coord, y_coord, tile_source);
+         /* the &0x7 is the same as %8 */
+         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, tile_source) + ((curr_scanline & 7) * 2);
+
+         ppu->frame_buffer[(PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline) + pixel_index] =
             ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
       }
    }

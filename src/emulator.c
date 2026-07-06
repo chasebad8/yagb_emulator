@@ -110,6 +110,16 @@ void debug_draw_io_dump(SDL_Renderer *renderer, io_t *io)
    DRAW_LINE("WX:  %4s 0x%02X", "", io->io_ram[0x4B]);
 }
 
+void debug_draw_ppu_dump(SDL_Renderer *renderer, ppu_t *ppu)
+{
+   int y = 375;
+   char line[128];
+
+   DRAW_BOLD_LINE("PPU");
+
+   DRAW_LINE("Window Y Active:%5s %d", "", ppu->window_y_active);
+}
+
 void debug_draw_text(SDL_Renderer *renderer,
                      debug_renderer_t *debug,
                      int x,
@@ -394,9 +404,10 @@ void emulator_run(emulator_t *emulator)
 
          debug_draw_cpu_dump(renderer, &emulator->cpu);
          debug_draw_io_dump(renderer, &emulator->io);
+         debug_draw_ppu_dump(renderer, &emulator->ppu);
 
          SDL_RenderPresent(renderer);
-         //SDL_Delay(500);
+         //SDL_Delay(100);
 #endif
          new_scanline_edge = bus_read(&emulator->bus, LY_REG);
       }

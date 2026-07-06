@@ -49,6 +49,10 @@
 
 #define PPU_BYTES_PER_TILE (16)
 
+/* the &0x1F is the same as %32 */
+#define MODULO_32 0x1F
+#define MODULO_8  0x07
+
 typedef struct
 {
    uint8_t y_pos;
@@ -239,7 +243,7 @@ static void ppu_mode_0_hblank(ppu_t *ppu)
  */
 static void ppu_mode_1_vblank(ppu_t *ppu)
 {
-   ;
+   ppu->window_y_active = false;
 }
 
 /**
@@ -288,7 +292,8 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
       bus_read_lcdc_reg(ppu->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT;
    bool is_win_bg_enabled = false;
    bool is_window_enabled = false;
-   enum tile_source_e tile_source = TILE_SOURCE_BG;
+   bool window_render_started = false;
+   enum tile_source_e tile_source = TILE_SOURCE_WINDOW;
 
    if(lcd_enabled == false)
    {
@@ -302,32 +307,39 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
       is_window_enabled =
          bus_read_lcdc_reg(ppu->bus, LCDC_REG_WINDOW_ENABLE_MASK) >> LCDC_REG_WINDOW_ENABLE_SHIFT;
 
-      tile_source = (is_window_enabled == true) ? TILE_SOURCE_WINDOW : TILE_SOURCE_BG;
-
       if (is_win_bg_enabled == true)
       {
-         /* window */
-         if ((is_window_enabled == true) &&
-             (curr_scanline >= bus_read(ppu->bus, WY_REG)) &&
-             (pixel_index   >= bus_read(ppu->bus, WX_REG) - 7))
+         if ((window_render_started == false) &&
+             (is_window_enabled == true) &&
+             (ppu->window_y_active == true) &&
+             (pixel_index == bus_read(ppu->bus, WX_REG) - 7))
          {
+            window_render_started = true;
+            ppu->window_line = curr_scanline;
+         }
+
+         /* window */
+         if (window_render_started == true)
+         {
+            tile_source = TILE_SOURCE_WINDOW;
             x_coord = pixel_index - (bus_read(ppu->bus, WX_REG) - 7);
-            y_coord = curr_scanline;
+            y_coord = ppu->window_line;
+            ppu->window_line++;
          }
          else /* background */
          {
+            tile_source = TILE_SOURCE_BG;
             x_coord = pixel_index   + bus_read(ppu->bus, SCX_REG);
             y_coord = curr_scanline + bus_read(ppu->bus, SCY_REG);
          }
 
-         /* the &0x1F is the same as %32 */
-         x_coord = (x_coord / 8) & 0x1F;
-         y_coord = (y_coord / 8) & 0x1F;
+         x_coord = (x_coord / 8) & MODULO_32;
+         y_coord = (y_coord / 8) & MODULO_32;
 
          /* setting this to windows mode for some reason breifly shows the right thing */
          tile_index = ppu_get_tile_index(ppu, x_coord, y_coord, tile_source);
          /* the &0x7 is the same as %8 */
-         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, tile_source) + ((curr_scanline & 7) * 2);
+         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, tile_source) + ((curr_scanline & MODULO_8) * 2);
 
          ppu->frame_buffer[(PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline) + pixel_index] =
             ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
@@ -350,6 +362,9 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    ppu_p->state       = STATE_2_OAM_QUERY;
    ppu_p->tick_count  = 0;
    ppu_p->frame_count = 0;
+   ppu_p->lyc_triggered = false;
+   ppu_p->window_line = 0;
+   ppu_p->window_y_active = false;
 
    memset(ppu_p->vram, 0, VRAM_SIZE);
    memset(ppu_p->oam,  0, OAM_SIZE);
@@ -395,6 +410,7 @@ static void ppu_update_state_machine(ppu_t *ppu)
    {
       if(PPU_IS_NEW_FRAME(scanline) == true)
       {
+         ppu->window_line = 0;
          ppu->frame_count++;
       }
 
@@ -415,6 +431,11 @@ static void ppu_update_state_machine(ppu_t *ppu)
    {
       bus_write_stat_reg(ppu->bus, STAT_REG_LYC_EQ_LY_MASK, 0 << STAT_REG_LYC_EQ_LY_SHIFT);
       ppu->lyc_triggered = false;
+   }
+
+   if(scanline == bus_read(ppu->bus, WY_REG))
+   {
+      ppu->window_y_active = true;
    }
 
    // LOG_DEBUG("ppu->tick_count %d, frame count %d, mode %d LY %d", ppu->tick_count,
@@ -486,7 +507,7 @@ void ppu_step(ppu_t *ppu, uint8_t num_ticks)
    /* ppu operates 1 tick at a time */
    uint8_t consumed_ticks = num_ticks;
 
-   while(consumed_ticks--)
+   while(consumed_ticks-- > 0)
    {
       ppu_update_state_machine(ppu);
 

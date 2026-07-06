@@ -53,6 +53,9 @@ typedef struct
 
    uint8_t lyc_triggered;
 
+   uint8_t window_line;
+   uint8_t window_y_active;
+
 } ppu_t;
 
 void ppu_init(ppu_t *ppu_p, bus_t *bus_p);

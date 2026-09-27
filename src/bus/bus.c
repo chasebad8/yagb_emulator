@@ -171,13 +171,11 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
          case REGION_VRAM:
             return ppu_vram_read(bus_p->ppu, addr - 0x8000);
          case REGION_CARTRIDGE_RAM:
-            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            return cartridge_ram_read(bus_p->rom, addr);
          case REGION_WRAM:
             return bus_p->wram[addr - 0xC000];
          case REGION_ECHO_RAM:
-            LOG_ERROR("%s read not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            return bus_p->wram[addr - 0xE000];
          case REGION_OAM:
             return ppu_oam_read(bus_p->ppu, addr - 0xFE00);
          case REGION_UNUSABLE:
@@ -212,33 +210,25 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
       switch (bus_get_region(addr))
       {
          case REGION_ROM:
-#ifndef DEBUG_MODE
-            LOG_ERROR("illegal write of rom requested: 0x%04X", addr);
-            exit(-1);
-#else
             cartridge_write(bus_p->rom, addr, value);
-#endif
             break;
          case REGION_VRAM:
             ppu_vram_write(bus_p->ppu, addr - 0x8000, value);
             break;
          case REGION_CARTRIDGE_RAM:
-            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            cartridge_ram_write(bus_p->rom, addr, value);
             break;
          case REGION_WRAM:
             bus_p->wram[addr - 0xC000] = value;
             break;
          case REGION_ECHO_RAM:
-            LOG_ERROR("%s write not implemented", bus_memory_region_to_string(bus_get_region(addr)));
-            exit(-1);
+            bus_p->wram[addr - 0xE000] = value;
             break;
          case REGION_OAM:
             ppu_oam_write(bus_p->ppu, addr - 0xFE00, value);
             break;
          case REGION_UNUSABLE:
-            LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);
-            exit(-1);
+            break;
          case REGION_IO:
             if (addr == BANK_REG)
             {

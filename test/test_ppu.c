@@ -9,6 +9,7 @@
  */
 
 #include <SDL2/SDL.h>
+#include <string.h>
 
 #include "unity.h"
 #include "emulator.h"
@@ -384,6 +385,10 @@ void test_bus_boot_rom_overlay_disables_through_ff50( void )
    TEST_ASSERT_EQUAL_HEX8(0x5A, bus_read(&emu.bus, 0x0100));
    TEST_ASSERT_EQUAL_HEX8(0x00, bus_read(&emu.bus, BANK_REG));
 
+   bus_write(&emu.bus, 0x0000, 0x0A);
+   bus_write(&emu.bus, 0x2000, 0x02);
+   TEST_ASSERT_EQUAL_HEX8(0x3C, bus_read(&emu.bus, 0x0000));
+
    bus_write(&emu.bus, BANK_REG, 0x00);
    TEST_ASSERT_EQUAL_HEX8(0x3C, bus_read(&emu.bus, 0x0000));
 
@@ -393,6 +398,106 @@ void test_bus_boot_rom_overlay_disables_through_ff50( void )
 
    bus_write(&emu.bus, BANK_REG, 0x00);
    TEST_ASSERT_EQUAL_HEX8(0xA5, bus_read(&emu.bus, 0x0000));
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_mbc1_rom_and_ram_banking( void )
+{
+   cartridge_t cartridge;
+   uint8_t test_rom[4 * 0x4000];
+   uint8_t test_ram[4 * 0x2000] = {0};
+
+   cartridge_init(&cartridge);
+   for (uint8_t bank = 0; bank < 4; bank++)
+   {
+      memset(&test_rom[bank * 0x4000], bank, 0x4000);
+   }
+   cartridge.rom = test_rom;
+   cartridge.rom_size = sizeof(test_rom);
+   cartridge.rom_bank_count = 4;
+   cartridge.ram = test_ram;
+   cartridge.ram_size = sizeof(test_ram);
+   cartridge.ram_bank_count = 4;
+   cartridge.mapper = CARTRIDGE_MAPPER_MBC1;
+
+   cartridge.mapper = CARTRIDGE_MAPPER_ROM_ONLY;
+   TEST_ASSERT_EQUAL_HEX8(1, cartridge_read(&cartridge, 0x4000));
+   cartridge.mapper = CARTRIDGE_MAPPER_MBC1;
+
+   TEST_ASSERT_EQUAL_HEX8(0, cartridge_read(&cartridge, 0x0000));
+   TEST_ASSERT_EQUAL_HEX8(1, cartridge_read(&cartridge, 0x4000));
+
+   cartridge_write(&cartridge, 0x2000, 2);
+   TEST_ASSERT_EQUAL_HEX8(2, cartridge_read(&cartridge, 0x4000));
+   cartridge_write(&cartridge, 0x2000, 0);
+   TEST_ASSERT_EQUAL_HEX8(1, cartridge_read(&cartridge, 0x4000));
+
+   cartridge_write(&cartridge, 0x0000, 0x0A);
+   cartridge_write(&cartridge, 0x6000, 1);
+   cartridge_write(&cartridge, 0x4000, 2);
+   cartridge_ram_write(&cartridge, 0xA000, 0x5A);
+   TEST_ASSERT_EQUAL_HEX8(0x5A, cartridge_ram_read(&cartridge, 0xA000));
+   TEST_ASSERT_EQUAL_HEX8(0x00, test_ram[0]);
+   TEST_ASSERT_EQUAL_HEX8(0x5A, test_ram[2 * 0x2000]);
+
+   cartridge_write(&cartridge, 0x0000, 0);
+   TEST_ASSERT_EQUAL_HEX8(0xFF, cartridge_ram_read(&cartridge, 0xA000));
+}
+
+void test_bus_echo_ram_mirrors_wram( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   bus_write(&emu.bus, 0xC123, 0x5A);
+   TEST_ASSERT_EQUAL_HEX8(0x5A, bus_read(&emu.bus, 0xE123));
+
+   bus_write(&emu.bus, 0xFDFF, 0xA5);
+   TEST_ASSERT_EQUAL_HEX8(0xA5, bus_read(&emu.bus, 0xDDFF));
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_bus_ignores_unusable_memory_writes( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   ppu_oam_write(&emu.ppu, 0x9F, 0x5A);
+   bus_write(&emu.bus, 0xFEFF, 0xA5);
+   TEST_ASSERT_EQUAL_HEX8(0x5A, ppu_oam_read(&emu.ppu, 0x9F));
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_ppu_stops_timing_when_lcd_is_disabled( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+   emu.io.io_ram[0x40] = 0;
+   emu.io.io_ram[0x44] = 0x90;
+
+   for (uint16_t ticks = 0; ticks < 1000; ticks += 100)
+   {
+      ppu_step(&emu.ppu, 100);
+   }
+
+   TEST_ASSERT_EQUAL_UINT8(0, emu.io.io_ram[0x44]);
+   TEST_ASSERT_EQUAL_UINT8(STATE_0_HBLANK, emu.ppu.state);
+   TEST_ASSERT_EQUAL_UINT16(0, emu.ppu.tick_count);
+   TEST_ASSERT_EQUAL_HEX8(0, emu.io.io_ram[0x0F] & IF_REG_VBLANK_MASK);
+
+   emu.io.io_ram[0x40] = 0x80;
+   ppu_step(&emu.ppu, 1);
+   TEST_ASSERT_EQUAL_UINT8(STATE_2_OAM_QUERY, emu.ppu.state);
+   TEST_ASSERT_EQUAL_UINT8(0, emu.io.io_ram[0x44]);
 
    emulator_unload_game_cartridge(&emu);
 }
@@ -410,6 +515,10 @@ int run_ppu_tests(void)
    RUN_TEST(test_ppu_window_line_counter_pauses_when_hidden);
    RUN_TEST(test_ppu_renders_sprite_and_preserves_transparent_pixels);
    RUN_TEST(test_bus_boot_rom_overlay_disables_through_ff50);
+   RUN_TEST(test_mbc1_rom_and_ram_banking);
+   RUN_TEST(test_bus_echo_ram_mirrors_wram);
+   RUN_TEST(test_bus_ignores_unusable_memory_writes);
+   RUN_TEST(test_ppu_stops_timing_when_lcd_is_disabled);
 
    return UNITY_END();
 }

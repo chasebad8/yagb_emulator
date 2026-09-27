@@ -45,6 +45,7 @@ typedef struct
    uint8_t sprite_arr[PPU_MAX_SPRITES];
    uint8_t sprite_count;
    uint8_t rendered_scanline;
+   uint8_t oam_scanline;
 
    uint8_t frame_buffer[FRAME_BUFFER_SIZE];
 

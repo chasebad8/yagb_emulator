@@ -485,6 +485,7 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    ppu_p->window_rendered_this_line = false;
    ppu_p->sprite_count = 0;
    ppu_p->rendered_scanline = 0xFF;
+   ppu_p->oam_scanline = 0xFF;
 
    memset(ppu_p->vram, 0, VRAM_SIZE);
    memset(ppu_p->oam,  0, OAM_SIZE);
@@ -634,12 +635,40 @@ static void ppu_update_state_machine(ppu_t *ppu)
  */
 void ppu_step(ppu_t *ppu, uint8_t num_ticks)
 {
+   bool lcd_enabled =
+      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT) != 0;
+
+   if (lcd_enabled == false)
+   {
+      ppu->tick_count = 0;
+      ppu->state = STATE_0_HBLANK;
+      ppu->window_line = 0;
+      ppu->window_y_active = false;
+      ppu->window_rendered_this_line = false;
+      ppu->sprite_count = 0;
+      ppu->oam_scanline = 0xFF;
+      ppu->rendered_scanline = 0xFF;
+      bus_write(ppu->bus, LY_REG, 0);
+      bus_write_stat_reg(ppu->bus, STAT_REG_PPU_MODE_MASK, STATE_0_HBLANK);
+      return;
+   }
+
    /* ppu operates 1 tick at a time */
    uint8_t consumed_ticks = num_ticks;
 
    while(consumed_ticks-- > 0)
    {
       ppu_update_state_machine(ppu);
+
+      if (ppu->state == STATE_2_OAM_QUERY)
+      {
+         uint8_t scanline = bus_read(ppu->bus, LY_REG);
+         if (ppu->oam_scanline != scanline)
+         {
+            ppu_mode_2_oam_query(ppu);
+            ppu->oam_scanline = scanline;
+         }
+      }
 
       switch(ppu->state)
       {
@@ -652,7 +681,6 @@ void ppu_step(ppu_t *ppu, uint8_t num_ticks)
             break;
 
          case STATE_2_OAM_QUERY:
-            ppu_mode_2_oam_query(ppu);
             break;
 
          case STATE_3_PIXEL_TRANSFER:

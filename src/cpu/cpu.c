@@ -40,6 +40,7 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
    cpu->PC = 0x100;
    cpu->SP = 0x0;
    cpu->IME = 0;
+   cpu->halted = 0;
 
    cpu->bus = bus;
 
@@ -154,6 +155,21 @@ uint8_t cpu_step(cpu_t *cpu)
    }
    else
    {
+      if (cpu->halted)
+      {
+         uint8_t pending = bus_read(cpu->bus, IF_REG) & bus_read(cpu->bus, IE_REG) & 0x1F;
+         if (pending == 0)
+         {
+            return 4;
+         }
+
+         cpu->halted = 0;
+         if (cpu->IME)
+         {
+            return 4;
+         }
+      }
+
       uint8_t opcode = bus_read(cpu->bus, cpu->PC++);
       t_cycles = cpu_run_opcode(cpu, opcode);
    }

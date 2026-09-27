@@ -414,6 +414,7 @@ void emulator_run(emulator_t *emulator)
    /* temporary */
    uint8_t   cycle_count       = 0;
    uint8_t   new_scanline_edge = 0;
+   uint16_t  event_poll_counter = 0;
    SDL_Event event;
 
    while (1)
@@ -421,45 +422,54 @@ void emulator_run(emulator_t *emulator)
       cycle_count  = cpu_step(&emulator->cpu);
       cycle_count += cpu_process_interrupts(&emulator->cpu);
       ppu_step(&emulator->ppu, cycle_count);
+      event_poll_counter++;
 
       if(bus_read(&emulator->bus, LY_REG) != new_scanline_edge)
       {
-         if ((bus_read_lcdc_reg(&emulator->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT) == 0x00)
-         {
-            memset(emulator->ppu.frame_buffer, 0x00000000, FRAME_BUFFER_SIZE);
-         }
-         else
-         {
-            emulator_2bb_to_rgba(emulator);
-         }
+         new_scanline_edge = bus_read(&emulator->bus, LY_REG);
 
-         emulator_refresh_vram_preview(emulator);
+         if (new_scanline_edge == PPU_NUM_VISIBLE_SCANLINES)
+         {
+            if ((bus_read_lcdc_reg(&emulator->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT) == 0x00)
+            {
+               memset(emulator->ppu.frame_buffer, 0x00000000, FRAME_BUFFER_SIZE);
+            }
+            else
+            {
+               emulator_2bb_to_rgba(emulator);
+            }
+
+            emulator_refresh_vram_preview(emulator);
 
 #ifndef DEBUG_MODE
-         SDL_UpdateTexture(texture, NULL, emulator->rgb_frame_buffer, WIDTH * sizeof(uint32_t));
-         SDL_RenderClear(renderer);
+            SDL_UpdateTexture(texture, NULL, emulator->rgb_frame_buffer, WIDTH * sizeof(uint32_t));
+            SDL_RenderClear(renderer);
 
-         SDL_RenderCopy(renderer, texture, NULL, &game_rect);
-         SDL_RenderCopy(renderer, vram_texture, NULL, &vram_rect);
+            SDL_RenderCopy(renderer, texture, NULL, &game_rect);
+            SDL_RenderCopy(renderer, vram_texture, NULL, &vram_rect);
 
-         debug_draw_cpu_dump(renderer, &emulator->cpu);
-         debug_draw_io_dump(renderer, &emulator->io);
-         debug_draw_ppu_dump(renderer, &emulator->ppu);
+            debug_draw_cpu_dump(renderer, &emulator->cpu);
+            debug_draw_io_dump(renderer, &emulator->io);
+            debug_draw_ppu_dump(renderer, &emulator->ppu);
 
-         SDL_RenderPresent(renderer);
-         //SDL_Delay(100);
+            SDL_RenderPresent(renderer);
 #endif
-         new_scanline_edge = bus_read(&emulator->bus, LY_REG);
+
+            event_poll_counter = 1024;
+         }
       }
 
-      /* check if user wants to quit */
-      while (SDL_PollEvent(&event))
+      if (event_poll_counter >= 1024)
       {
-         if (event.type == SDL_QUIT)
+         event_poll_counter = 0;
+         while (SDL_PollEvent(&event))
          {
-            LOG_INFO("SDL_QUIT received, exiting...");
-            emulator_shutdown(emulator);
-            exit(0);
+            if (event.type == SDL_QUIT)
+            {
+               LOG_INFO("SDL_QUIT received, exiting...");
+               emulator_shutdown(emulator);
+               exit(0);
+            }
          }
       }
    }

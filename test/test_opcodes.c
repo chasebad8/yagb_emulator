@@ -691,6 +691,31 @@ void test_op_reti(void)
    emulator_unload_game_cartridge(&emu);
 }
 
+void test_op_halt_waits_and_wakes_for_interrupt(void)
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   emu.cpu.PC = 0x0000;
+   emu.rom.rom[0x0000] = OP_HALT;
+   TEST_ASSERT_EQUAL_UINT8(4, cpu_step(&emu.cpu));
+   TEST_ASSERT_EQUAL_UINT8(1, emu.cpu.halted);
+   TEST_ASSERT_EQUAL_UINT8(4, cpu_step(&emu.cpu));
+   TEST_ASSERT_EQUAL_HEX16(0x0001, emu.cpu.PC);
+
+   emu.cpu.IME = 1;
+   emu.io.io_ram[0x0F] = IF_REG_VBLANK_MASK;
+   emu.bus.hram[0x7F] = IF_REG_VBLANK_MASK;
+   TEST_ASSERT_EQUAL_UINT8(4, cpu_step(&emu.cpu));
+   TEST_ASSERT_EQUAL_UINT8(0, emu.cpu.halted);
+   TEST_ASSERT_EQUAL_UINT8(24, cpu_process_interrupts(&emu.cpu));
+   TEST_ASSERT_EQUAL_HEX16(0x0040, emu.cpu.PC);
+
+   emulator_unload_game_cartridge(&emu);
+}
+
 int run_cpu_tests(void)
 {
    UNITY_BEGIN();
@@ -701,6 +726,7 @@ int run_cpu_tests(void)
    RUN_TEST(test_op_pc_misc);
    RUN_TEST(test_op_bit_shifting);
    RUN_TEST(test_op_reti);
+   RUN_TEST(test_op_halt_waits_and_wakes_for_interrupt);
 
    return UNITY_END();
 }

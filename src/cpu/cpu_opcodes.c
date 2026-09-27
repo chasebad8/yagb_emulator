@@ -806,6 +806,13 @@ static uint8_t op_stop(cpu_t *cpu, uint8_t opcode)
    exit(1);
 }
 
+static uint8_t op_halt(cpu_t *cpu, uint8_t opcode)
+{
+   cpu->halted = 1;
+   LOG_OPCODE("HALT");
+   return 4;
+}
+
 /**********************************************************
                      BLOCK 1 OPCODES
              8-bit register-to-register loads
@@ -2121,7 +2128,7 @@ static const opcode_handler_t opcode_table[OP_MAX] =
    op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
    op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
-   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  TODO,         op_ld_r8_r8,
+   op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_halt,       op_ld_r8_r8,
    op_ld_r8_r8,    op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,   op_ld_r8_r8,  op_ld_r8_r8,  op_ld_r8_r8,
 
    op_add_a_r8,    op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,   op_add_a_r8,  op_add_a_r8,  op_add_a_r8,

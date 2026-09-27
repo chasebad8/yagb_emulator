@@ -113,6 +113,7 @@ typedef struct
    uint16_t PC; /* program counter */
 
    uint8_t IME; /* interrupt master enable flag */
+   uint8_t halted;
 
    bus_t *bus; /* pointer to bus instance */
 

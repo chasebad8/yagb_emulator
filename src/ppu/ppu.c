@@ -210,11 +210,11 @@ static sprite_attr_t ppu_get_sprite_attr(ppu_t *ppu, uint8_t sprite_index)
  * @return true
  * @return false
  */
-static bool ppu_is_sprite_on_scanline(ppu_t *ppu, uint8_t sprite_y_pos)
+static bool ppu_is_sprite_on_scanline(ppu_t *ppu, int16_t sprite_y_pos)
 {
-   uint8_t curr_scanline  = bus_read(ppu->bus, LY_REG);
+   int16_t curr_scanline  = bus_read(ppu->bus, LY_REG);
    bool    sprite_is_tall = bus_read_lcdc_reg(ppu->bus, LCDC_REG_OBJ_SIZE_MASK) >> LCDC_REG_OBJ_SIZE_SHIFT;
-   uint8_t sprite_height  = ((sprite_is_tall == true) ? 16 : 8);
+   int16_t sprite_height  = ((sprite_is_tall == true) ? 16 : 8);
 
    if ((curr_scanline >= sprite_y_pos) && (curr_scanline < (sprite_y_pos + sprite_height)))
    {
@@ -257,9 +257,11 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
 {
    uint8_t sprite_cnt = 0;
 
+   ppu->sprite_count = 0;
+
    for (uint8_t sprite_index = 0; sprite_index < PPU_MAX_SPRITES; sprite_index++)
    {
-      uint8_t sprite_y_pos = ppu_get_sprite_attr(ppu, sprite_index).y_pos - PPU_SPRITE_Y_OFFSET;
+      int16_t sprite_y_pos = ppu_get_sprite_attr(ppu, sprite_index).y_pos - PPU_SPRITE_Y_OFFSET;
 
       if (ppu_is_sprite_on_scanline(ppu, sprite_y_pos) == true)
       {
@@ -273,6 +275,8 @@ static void ppu_mode_2_oam_query(ppu_t *ppu)
          break;
       }
    }
+
+   ppu->sprite_count = sprite_cnt;
 }
 
 /**
@@ -287,6 +291,7 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
    uint16_t tile_addr     = 0;
    uint8_t  x_coord       = 0;
    uint8_t  y_coord       = 0;
+   uint8_t  bg_color_ids[PPU_NUM_PIXELS_PER_SCANLINE];
 
    bool lcd_enabled =
       bus_read_lcdc_reg(ppu->bus, LCDC_REG_LCD_ENABLE_MASK) >> LCDC_REG_LCD_ENABLE_SHIFT;
@@ -299,6 +304,13 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
    {
       return;
    }
+
+   if (ppu->rendered_scanline == curr_scanline)
+   {
+      return;
+   }
+
+   ppu->rendered_scanline = curr_scanline;
 
    for (uint8_t pixel_index = 0; pixel_index < PPU_NUM_PIXELS_PER_SCANLINE; pixel_index++)
    {
@@ -350,14 +362,105 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
          /* column within tile (0-7) */
          uint8_t col_in_tile = pixel_x_abs & MODULO_8;
 
-         ppu->frame_buffer[(PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline) + pixel_index] =
-            ppu_get_tile_pixel_color_id(ppu, tile_addr, col_in_tile);
+         bg_color_ids[pixel_index] = ppu_get_tile_pixel_color_id(ppu, tile_addr, col_in_tile);
       }
+      else
+      {
+         bg_color_ids[pixel_index] = 0;
+      }
+
+      ppu->frame_buffer[(PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline) + pixel_index] =
+         bg_color_ids[pixel_index];
    }
 
    if (window_render_started == true)
    {
       ppu->window_rendered_this_line = true;
+   }
+
+   bool objects_enabled =
+      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_OBJ_ENABLE_MASK) >> LCDC_REG_OBJ_ENABLE_SHIFT) != 0;
+   if (objects_enabled == false)
+   {
+      return;
+   }
+
+   bool tall_sprites =
+      (bus_read_lcdc_reg(ppu->bus, LCDC_REG_OBJ_SIZE_MASK) >> LCDC_REG_OBJ_SIZE_SHIFT) != 0;
+   int16_t sprite_height = tall_sprites ? 16 : 8;
+
+   for (uint8_t pixel_x = 0; pixel_x < PPU_NUM_PIXELS_PER_SCANLINE; pixel_x++)
+   {
+      bool pixel_has_sprite = false;
+      int16_t best_sprite_x = 256;
+      uint8_t best_sprite_index = 0xFF;
+      uint8_t best_color_id = 0;
+      uint8_t best_attributes = 0;
+
+      for (uint8_t selected_index = 0; selected_index < ppu->sprite_count; selected_index++)
+      {
+         uint8_t sprite_index = ppu->sprite_arr[selected_index];
+         sprite_attr_t sprite = ppu_get_sprite_attr(ppu, sprite_index);
+         int16_t sprite_left = (int16_t)sprite.x_pos - 8;
+         int16_t sprite_top = (int16_t)sprite.y_pos - PPU_SPRITE_Y_OFFSET;
+         int16_t sprite_row = (int16_t)curr_scanline - sprite_top;
+         int16_t sprite_col = (int16_t)pixel_x - sprite_left;
+
+         if ((sprite_col < 0) || (sprite_col >= 8) ||
+             (sprite_row < 0) || (sprite_row >= sprite_height))
+         {
+            continue;
+         }
+
+         if (sprite.attributes & 0x40)
+         {
+            sprite_row = sprite_height - 1 - sprite_row;
+         }
+         if (sprite.attributes & 0x20)
+         {
+            sprite_col = 7 - sprite_col;
+         }
+
+         uint8_t sprite_tile = sprite.tile_index;
+         if (tall_sprites)
+         {
+            sprite_tile &= 0xFE;
+            sprite_tile += sprite_row / 8;
+            sprite_row %= 8;
+         }
+
+         uint16_t sprite_addr = 0x8000 + (sprite_tile * PPU_BYTES_PER_TILE) + (sprite_row * 2);
+         uint8_t color_id = ppu_get_tile_pixel_color_id(ppu, sprite_addr, sprite_col);
+         if (color_id == 0)
+         {
+            continue;
+         }
+
+         if ((pixel_has_sprite == false) || (sprite_left < best_sprite_x) ||
+             ((sprite_left == best_sprite_x) && (sprite_index < best_sprite_index)))
+         {
+            pixel_has_sprite = true;
+            best_sprite_x = sprite_left;
+            best_sprite_index = sprite_index;
+            best_color_id = color_id;
+            best_attributes = sprite.attributes;
+         }
+      }
+
+      if (pixel_has_sprite == false)
+      {
+         continue;
+      }
+
+      if ((best_attributes & 0x80) && (bg_color_ids[pixel_x] != 0))
+      {
+         continue;
+      }
+
+      uint16_t palette_register = (best_attributes & 0x10) ? OBP1_REG : OBP0_REG;
+      uint8_t palette = bus_read(ppu->bus, palette_register);
+      uint8_t shade = (palette >> (best_color_id * 2)) & 0x03;
+      ppu->frame_buffer[(PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline) + pixel_x] = shade;
    }
 }
 
@@ -380,6 +483,8 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    ppu_p->window_line = 0;
    ppu_p->window_y_active = false;
    ppu_p->window_rendered_this_line = false;
+   ppu_p->sprite_count = 0;
+   ppu_p->rendered_scanline = 0xFF;
 
    memset(ppu_p->vram, 0, VRAM_SIZE);
    memset(ppu_p->oam,  0, OAM_SIZE);

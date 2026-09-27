@@ -73,6 +73,15 @@ cmake -B build
 cmake --build build
 ```
 
+Run a cartridge directly, or supply a 256-byte DMG boot ROM before the game ROM:
+
+```bash
+./build/yagb game.gb
+./build/yagb --boot dmg_boot.bin game.gb
+```
+
+The boot ROM is mapped at `0000-00FF` until it writes a nonzero value to `FF50`.
+
 ## Components
 
 ### Bus (`src/bus/`)

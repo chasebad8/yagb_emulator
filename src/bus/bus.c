@@ -92,12 +92,26 @@ void bus_init(bus_t       *bus_p,
       bus_p->io  = io_p;
       bus_p->ppu = ppu_p;
       bus_p->rom = cartridge_p;
+      memset(bus_p->boot_rom, 0, sizeof(bus_p->boot_rom));
+      bus_p->boot_rom_enabled = 0;
 
       memset(bus_p->wram, 0, WRAM_SIZE * sizeof(uint8_t));
       memset(bus_p->hram, 0, HRAM_SIZE * sizeof(uint8_t));
 
       LOG_DEBUG("bus init success!");
    }
+}
+
+void bus_map_boot_rom(bus_t *bus, const uint8_t *boot_rom)
+{
+   if (bus == NULL || boot_rom == NULL)
+   {
+      LOG_ERROR("invalid boot ROM mapping arguments");
+      exit(-1);
+   }
+
+   memcpy(bus->boot_rom, boot_rom, BOOT_ROM_SIZE);
+   bus->boot_rom_enabled = 1;
 }
 
 static const char* bus_memory_region_to_string(memory_region_t memory_region)
@@ -149,6 +163,10 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
       switch (bus_get_region(addr))
       {
          case REGION_ROM:
+            if (bus_p->boot_rom_enabled && addr < BOOT_ROM_SIZE)
+            {
+               return bus_p->boot_rom[addr];
+            }
             return cartridge_read(bus_p->rom, addr);
          case REGION_VRAM:
             return ppu_vram_read(bus_p->ppu, addr - 0x8000);
@@ -167,6 +185,10 @@ uint8_t bus_read(bus_t *bus_p, uint16_t addr)
             print_backtrace();
             exit(-1);
          case REGION_IO:
+            if (addr == BANK_REG)
+            {
+               return bus_p->boot_rom_enabled ? 0x00 : 0x01;
+            }
             return io_ram_read(bus_p->io, addr - 0xFF00);
          case REGION_HRAM:
             return bus_p->hram[addr - 0xFF80];
@@ -218,7 +240,17 @@ void bus_write(bus_t *bus_p, uint16_t addr, uint8_t value)
             LOG_ERROR("illegal write of unusable memory requested: 0x%04X", addr);
             exit(-1);
          case REGION_IO:
-            io_ram_write(bus_p->io, addr - 0xFF00, value);
+            if (addr == BANK_REG)
+            {
+               if (value != 0)
+               {
+                  bus_p->boot_rom_enabled = 0;
+               }
+            }
+            else
+            {
+               io_ram_write(bus_p->io, addr - 0xFF00, value);
+            }
             break;
          case REGION_HRAM:
             bus_p->hram[addr - 0xFF80] = value;

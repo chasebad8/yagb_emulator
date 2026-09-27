@@ -39,6 +39,7 @@ void cpu_init(cpu_t *cpu, bus_t *bus)
    cpu->L  = 0x0;
    cpu->PC = 0x100;
    cpu->SP = 0x0;
+   cpu->IME = 0;
 
    cpu->bus = bus;
 

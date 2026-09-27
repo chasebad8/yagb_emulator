@@ -356,6 +356,46 @@ void emulator_load_game_cartridge(emulator_t *emulator, const char *game_cartrid
    }
 }
 
+void emulator_load_boot_rom(emulator_t *emulator, const char *boot_rom_path)
+{
+   uint8_t boot_rom[BOOT_ROM_SIZE];
+   FILE *boot_file;
+   long boot_rom_size;
+
+   if (emulator == NULL || boot_rom_path == NULL)
+   {
+      LOG_ERROR("invalid boot ROM arguments");
+      exit(-1);
+   }
+
+   boot_file = fopen(boot_rom_path, "rb");
+   if (boot_file == NULL)
+   {
+      LOG_ERROR("Failed to open boot ROM %s", boot_rom_path);
+      exit(-1);
+   }
+
+   if (fseek(boot_file, 0, SEEK_END) != 0 || (boot_rom_size = ftell(boot_file)) != BOOT_ROM_SIZE)
+   {
+      LOG_ERROR("DMG boot ROM must be exactly %u bytes", BOOT_ROM_SIZE);
+      fclose(boot_file);
+      exit(-1);
+   }
+   rewind(boot_file);
+
+   if (fread(boot_rom, 1, sizeof(boot_rom), boot_file) != sizeof(boot_rom))
+   {
+      LOG_ERROR("Failed to read boot ROM %s", boot_rom_path);
+      fclose(boot_file);
+      exit(-1);
+   }
+
+   fclose(boot_file);
+   bus_map_boot_rom(&emulator->bus, boot_rom);
+   emulator->cpu.PC = 0x0000;
+   LOG_INFO("successfully loaded DMG boot ROM from %s", boot_rom_path);
+}
+
 void emulator_unload_game_cartridge(emulator_t *emulator)
 {
    if(emulator == NULL)

@@ -10,6 +10,7 @@
 #define WRAM_SIZE 0x2000
 /* 127 B hram max */
 #define HRAM_SIZE 0x80
+#define BOOT_ROM_SIZE 0x100
 
 /* LCDC register fields */
 #define LCDC_REG_LCD_ENABLE_SHIFT       (7)
@@ -150,6 +151,8 @@ typedef struct bus_t
    io_t        *io;
    ppu_t       *ppu;
    cartridge_t *rom;
+   uint8_t boot_rom[BOOT_ROM_SIZE];
+   uint8_t boot_rom_enabled;
 
    uint8_t  wram[WRAM_SIZE];
    uint8_t  hram[HRAM_SIZE];
@@ -160,6 +163,8 @@ void bus_init(bus_t       *bus_p,
               ppu_t       *ppu_p,
               cartridge_t *cartridge_p,
               io_t        *io_p);
+
+void bus_map_boot_rom(bus_t *bus, const uint8_t *boot_rom);
 
 void bus_write(bus_t    *bus_p,
                uint16_t  addr,

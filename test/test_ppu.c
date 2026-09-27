@@ -332,6 +332,71 @@ void test_ppu_window_line_counter_pauses_when_hidden( void )
    emulator_unload_game_cartridge(&emu);
 }
 
+void test_ppu_renders_sprite_and_preserves_transparent_pixels( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   emu.io.io_ram[0x40] = 0x93;
+   emu.io.io_ram[0x47] = 0xE4;
+   emu.io.io_ram[0x48] = 0xE4;
+   emu.io.io_ram[0x4A] = 0xFF;
+   emu.io.io_ram[0x45] = 0xFF;
+
+   emu.ppu.vram[0] = 0x80;
+   emu.ppu.vram[1] = 0x00;
+   for (uint8_t row = 0; row < 8; row++)
+   {
+      emu.ppu.vram[16 + (row * 2)] = 0x00;
+      emu.ppu.vram[16 + (row * 2) + 1] = 0xFF;
+   }
+   emu.ppu.vram[0x1800] = 1;
+
+   ppu_oam_write(&emu.ppu, 0, 16);
+   ppu_oam_write(&emu.ppu, 1, 8);
+   ppu_oam_write(&emu.ppu, 2, 0);
+   ppu_oam_write(&emu.ppu, 3, 0);
+
+   ppu_step(&emu.ppu, 80);
+
+   TEST_ASSERT_EQUAL_UINT8(1, emu.ppu.frame_buffer[0]);
+   TEST_ASSERT_EQUAL_UINT8(2, emu.ppu.frame_buffer[1]);
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_bus_boot_rom_overlay_disables_through_ff50( void )
+{
+   emulator_t emu = {0};
+   uint8_t boot_rom[BOOT_ROM_SIZE] = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   emu.rom.rom[0x0000] = 0xA5;
+   emu.rom.rom[0x0100] = 0x5A;
+   boot_rom[0x0000] = 0x3C;
+   bus_map_boot_rom(&emu.bus, boot_rom);
+
+   TEST_ASSERT_EQUAL_HEX8(0x3C, bus_read(&emu.bus, 0x0000));
+   TEST_ASSERT_EQUAL_HEX8(0x5A, bus_read(&emu.bus, 0x0100));
+   TEST_ASSERT_EQUAL_HEX8(0x00, bus_read(&emu.bus, BANK_REG));
+
+   bus_write(&emu.bus, BANK_REG, 0x00);
+   TEST_ASSERT_EQUAL_HEX8(0x3C, bus_read(&emu.bus, 0x0000));
+
+   bus_write(&emu.bus, BANK_REG, 0x01);
+   TEST_ASSERT_EQUAL_HEX8(0xA5, bus_read(&emu.bus, 0x0000));
+   TEST_ASSERT_EQUAL_HEX8(0x01, bus_read(&emu.bus, BANK_REG));
+
+   bus_write(&emu.bus, BANK_REG, 0x00);
+   TEST_ASSERT_EQUAL_HEX8(0xA5, bus_read(&emu.bus, 0x0000));
+
+   emulator_unload_game_cartridge(&emu);
+}
+
 int run_ppu_tests(void)
 {
    UNITY_BEGIN();
@@ -343,6 +408,8 @@ int run_ppu_tests(void)
    RUN_TEST(test_ppu_vram_oam_rw);
    RUN_TEST(test_ppu_tile_pixel_various_patterns);
    RUN_TEST(test_ppu_window_line_counter_pauses_when_hidden);
+   RUN_TEST(test_ppu_renders_sprite_and_preserves_transparent_pixels);
+   RUN_TEST(test_bus_boot_rom_overlay_disables_through_ff50);
 
    return UNITY_END();
 }

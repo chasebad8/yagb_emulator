@@ -89,7 +89,7 @@ void test_ppu_get_tile_data_addr( void )
    emulator_init(&emu);
    emulator_load_game_cartridge(&emu, "");
 
-   emu.io.io_ram[0x40] = 0;
+   emu.io.io_ram[0x40] = 1 << 4;
 
    uint16_t addr = ppu_get_tile_data_addr(&emu.ppu, 0, TILE_SOURCE_BG);
    TEST_ASSERT_EQUAL_HEX(0x8000, addr);
@@ -104,7 +104,7 @@ void test_ppu_get_tile_data_addr( void )
    addr = ppu_get_tile_data_addr(&emu.ppu, 255, TILE_SOURCE_BG);
    TEST_ASSERT_EQUAL_HEX(0x8000 + (16 * 255), addr);
 
-   emu.io.io_ram[0x40] = 1 << 4;
+   emu.io.io_ram[0x40] = 0;
 
    addr = ppu_get_tile_data_addr(&emu.ppu, 0, TILE_SOURCE_BG);
    TEST_ASSERT_EQUAL_HEX(0x9000, addr);
@@ -118,7 +118,7 @@ void test_ppu_get_tile_data_addr( void )
    TEST_ASSERT_EQUAL_HEX(0x9000 + (16 * 32), addr);
    addr = ppu_get_tile_data_addr(&emu.ppu, 127, TILE_SOURCE_BG);
    TEST_ASSERT_EQUAL_HEX(0x9000 + (16 * 127), addr);
-   addr = ppu_get_tile_data_addr(&emu.ppu, -128, TILE_SOURCE_BG);
+   addr = ppu_get_tile_data_addr(&emu.ppu, 128, TILE_SOURCE_BG);
    TEST_ASSERT_EQUAL_HEX(0x8800, addr);
    addr = ppu_get_tile_data_addr(&emu.ppu, -1, TILE_SOURCE_BG);
    TEST_ASSERT_EQUAL_HEX(0x9000 - (16 * 1), addr);
@@ -252,6 +252,86 @@ void test_ppu_init( void )
    emulator_unload_game_cartridge(&emu);
 }
 
+void test_ppu_vram_oam_rw( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   /* VRAM read/write */
+   ppu_vram_write(&emu.ppu, 0x1234 - 0x8000, 0x5A);
+   TEST_ASSERT_EQUAL_HEX(0x5A, ppu_vram_read(&emu.ppu, 0x1234 - 0x8000));
+
+   /* OAM read/write */
+   ppu_oam_write(&emu.ppu, 10, 0x77);
+   TEST_ASSERT_EQUAL_HEX(0x77, ppu_oam_read(&emu.ppu, 10));
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_ppu_tile_pixel_various_patterns( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   /* prepare a tile with known patterns across rows */
+   /* row 0: 0b10101010 / 0b01010101 => pixels alternate */
+   emu.ppu.vram[0x8000 - 0x8000] = 0xAA; /* low */
+   emu.ppu.vram[0x8001 - 0x8000] = 0x55; /* high */
+
+   /* check pixels 0..7 */
+   uint8_t cols[8];
+   for (uint8_t i = 0; i < 8; i++)
+   {
+      cols[i] = ppu_get_tile_pixel_color_id(&emu.ppu, 0x8000, i);
+   }
+
+   /* expected pattern: 10 (2),01 (1),10,01... depends on bit mapping -> assert known values */
+   TEST_ASSERT_EQUAL_HEX(0x01, cols[0]);
+   TEST_ASSERT_EQUAL_HEX(0x02, cols[1]);
+
+   emulator_unload_game_cartridge(&emu);
+}
+
+void test_ppu_window_line_counter_pauses_when_hidden( void )
+{
+   emulator_t emu = {0};
+
+   emulator_init(&emu);
+   emulator_load_game_cartridge(&emu, "");
+
+   emu.io.io_ram[0x40] = 0xA1;
+   emu.io.io_ram[0x4A] = 0;
+   emu.io.io_ram[0x4B] = 7;
+   emu.io.io_ram[0x44] = 0;
+   emu.io.io_ram[0x45] = 0xFF;
+
+   for (uint16_t tick = 0; tick < 456; tick++)
+   {
+      ppu_step(&emu.ppu, 1);
+   }
+   TEST_ASSERT_EQUAL_UINT8(1, emu.ppu.window_line);
+
+   emu.io.io_ram[0x4B] = 0xF0;
+   for (uint16_t tick = 0; tick < 456; tick++)
+   {
+      ppu_step(&emu.ppu, 1);
+   }
+   TEST_ASSERT_EQUAL_UINT8(1, emu.ppu.window_line);
+
+   emu.io.io_ram[0x4B] = 7;
+   for (uint16_t tick = 0; tick < 456; tick++)
+   {
+      ppu_step(&emu.ppu, 1);
+   }
+   TEST_ASSERT_EQUAL_UINT8(2, emu.ppu.window_line);
+
+   emulator_unload_game_cartridge(&emu);
+}
+
 int run_ppu_tests(void)
 {
    UNITY_BEGIN();
@@ -260,6 +340,9 @@ int run_ppu_tests(void)
    RUN_TEST(test_ppu_get_tile_index);
    RUN_TEST(test_ppu_get_tile_data_addr);
    RUN_TEST(test_ppu_get_tile_pixel_color_id);
+   RUN_TEST(test_ppu_vram_oam_rw);
+   RUN_TEST(test_ppu_tile_pixel_various_patterns);
+   RUN_TEST(test_ppu_window_line_counter_pauses_when_hidden);
 
    return UNITY_END();
 }

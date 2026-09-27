@@ -55,6 +55,7 @@ typedef struct
 
    uint8_t window_line;
    uint8_t window_y_active;
+   uint8_t window_rendered_this_line;
 
 } ppu_t;
 

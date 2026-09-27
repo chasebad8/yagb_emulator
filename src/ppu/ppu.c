@@ -165,7 +165,7 @@ uint16_t ppu_get_tile_data_addr(ppu_t             *ppu,
 
          case TILE_SOURCE_BG:
          case TILE_SOURCE_WINDOW:
-            if(tile_data_mode == 1)
+            if(tile_data_mode == 0)
             {
                tile_addr = PPU_TILE_DATA_1_BASE_ADDR + ((int8_t)tile_index * PPU_BYTES_PER_TILE);
             }
@@ -309,41 +309,55 @@ static void ppu_mode_3_pixel_transfer(ppu_t *ppu)
 
       if (is_win_bg_enabled == true)
       {
+         uint8_t wx = bus_read(ppu->bus, WX_REG);
+         uint8_t scx = bus_read(ppu->bus, SCX_REG);
+         uint8_t scy = bus_read(ppu->bus, SCY_REG);
+
          if ((window_render_started == false) &&
              (is_window_enabled == true) &&
              (ppu->window_y_active == true) &&
-             (pixel_index == bus_read(ppu->bus, WX_REG) - 7))
+             (pixel_index == wx - 7))
          {
             window_render_started = true;
-            ppu->window_line = curr_scanline;
          }
 
-         /* window */
+         uint16_t pixel_x_abs = 0;
+         uint16_t pixel_y_abs = 0;
+
          if (window_render_started == true)
          {
             tile_source = TILE_SOURCE_WINDOW;
-            x_coord = pixel_index - (bus_read(ppu->bus, WX_REG) - 7);
-            y_coord = ppu->window_line;
-            ppu->window_line++;
+            pixel_x_abs = pixel_index - (wx - 7);
+            pixel_y_abs = ppu->window_line;
          }
-         else /* background */
+         else
          {
             tile_source = TILE_SOURCE_BG;
-            x_coord = pixel_index   + bus_read(ppu->bus, SCX_REG);
-            y_coord = curr_scanline + bus_read(ppu->bus, SCY_REG);
+            pixel_x_abs = pixel_index + scx;
+            pixel_y_abs = curr_scanline + scy;
          }
 
-         x_coord = (x_coord / 8) & MODULO_32;
-         y_coord = (y_coord / 8) & MODULO_32;
+         /* compute tile coords */
+         x_coord = (pixel_x_abs / 8) & MODULO_32;
+         y_coord = (pixel_y_abs / 8) & MODULO_32;
 
-         /* setting this to windows mode for some reason breifly shows the right thing */
          tile_index = ppu_get_tile_index(ppu, x_coord, y_coord, tile_source);
-         /* the &0x7 is the same as %8 */
-         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, tile_source) + ((curr_scanline & MODULO_8) * 2);
+
+         /* row within tile (0-7) */
+         uint8_t row_in_tile = pixel_y_abs & MODULO_8;
+         tile_addr  = ppu_get_tile_data_addr(ppu, tile_index, tile_source) + (row_in_tile * 2);
+
+         /* column within tile (0-7) */
+         uint8_t col_in_tile = pixel_x_abs & MODULO_8;
 
          ppu->frame_buffer[(PPU_NUM_PIXELS_PER_SCANLINE * curr_scanline) + pixel_index] =
-            ppu_get_tile_pixel_color_id(ppu, tile_addr, pixel_index);
+            ppu_get_tile_pixel_color_id(ppu, tile_addr, col_in_tile);
       }
+   }
+
+   if (window_render_started == true)
+   {
+      ppu->window_rendered_this_line = true;
    }
 }
 
@@ -365,6 +379,7 @@ void ppu_init(ppu_t *ppu_p, bus_t *bus_p)
    ppu_p->lyc_triggered = false;
    ppu_p->window_line = 0;
    ppu_p->window_y_active = false;
+   ppu_p->window_rendered_this_line = false;
 
    memset(ppu_p->vram, 0, VRAM_SIZE);
    memset(ppu_p->oam,  0, OAM_SIZE);
@@ -410,8 +425,18 @@ static void ppu_update_state_machine(ppu_t *ppu)
    {
       if(PPU_IS_NEW_FRAME(scanline) == true)
       {
-         ppu->window_line = 0;
          ppu->frame_count++;
+      }
+
+      if (scanline == PPU_NUM_SCANLINES - 1)
+      {
+         ppu->window_line = 0;
+         ppu->window_rendered_this_line = false;
+      }
+      else if (ppu->window_rendered_this_line == true)
+      {
+         ppu->window_line++;
+         ppu->window_rendered_this_line = false;
       }
 
       bus_write(ppu->bus, LY_REG, ++scanline % PPU_NUM_SCANLINES);
